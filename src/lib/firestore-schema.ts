@@ -69,9 +69,10 @@ export interface Cliente {
   criadoEm: Timestamp;
 }
 
-export type StatusContrato = "ORCAMENTO" | "CONFIRMADO" | "CONCLUIDO" | "CANCELADO";
+export type StatusContrato = "CONFIRMADO" | "CONCLUIDO" | "CANCELADO";
 export type TipoServico = "PRESENCIAL" | "PEGMONTE";
 export type ModoLogistica = "RETIRADA" | "ENTREGA";
+export type StatusOrcamento = "PENDENTE" | "CONVERTIDO" | "CANCELADO";
 
 export interface ItemContrato {
   produtoId: string;
@@ -109,6 +110,28 @@ export interface Contrato {
   criadoEm: Timestamp;
 }
 
+// Orçamento NÃO reserva estoque (diferente de Contrato) — é só uma proposta de
+// preço enviada ao cliente. Quando aceito, vira um Contrato (registro novo) via
+// converterEmContrato em src/lib/orcamentos.ts; o orçamento original fica como
+// histórico, marcado CONVERTIDO e apontando para o contratoId gerado.
+export interface Orcamento {
+  id: string;
+  numero: number; // gerado via contador em /contadores/orcamentos — numeração própria, não compartilha com Contrato
+  clienteId: string;
+  evento: string;
+  inicio: Timestamp;
+  fim: Timestamp;
+  status: StatusOrcamento;
+  tipoServico: TipoServico;
+  custos: number;
+  executoraId?: string;
+  modoLogistica: ModoLogistica;
+  endereco?: string;
+  itens: ItemContrato[];
+  contratoId?: string; // preenchido quando convertido
+  criadoEm: Timestamp;
+}
+
 export interface Despesa {
   id: string;
   descricao: string;
@@ -125,6 +148,7 @@ export const COLECOES = {
   produtos: "produtos",
   clientes: "clientes",
   contratos: "contratos",
+  orcamentos: "orcamentos",
   despesas: "despesas",
   contadores: "contadores",
 } as const;

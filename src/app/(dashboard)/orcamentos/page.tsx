@@ -1,49 +1,49 @@
 import Link from "next/link";
 import { PageHeader } from "../page-header";
-import { listarContratos } from "@/lib/contratos";
+import { listarOrcamentos } from "@/lib/orcamentos";
 import { listarClientes } from "@/lib/clientes";
-import type { StatusContrato } from "@/lib/firestore-schema";
+import type { StatusOrcamento } from "@/lib/firestore-schema";
 
-const ROTULO_STATUS: Record<StatusContrato, string> = {
-  CONFIRMADO: "Confirmado",
-  CONCLUIDO: "Concluído",
+const ROTULO_STATUS: Record<StatusOrcamento, string> = {
+  PENDENTE: "Pendente",
+  CONVERTIDO: "Convertido",
   CANCELADO: "Cancelado",
 };
 
-const COR_STATUS: Record<StatusContrato, string> = {
-  CONFIRMADO: "var(--rose)",
-  CONCLUIDO: "var(--sage)",
+const COR_STATUS: Record<StatusOrcamento, string> = {
+  PENDENTE: "var(--gold)",
+  CONVERTIDO: "var(--sage)",
   CANCELADO: "var(--ink-soft)",
 };
 
-export default async function ContratosPage({
+export default async function OrcamentosPage({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
-  const statusFiltro = status as StatusContrato | undefined;
+  const statusFiltro = status as StatusOrcamento | undefined;
 
-  const [contratos, clientes] = await Promise.all([listarContratos(statusFiltro), listarClientes()]);
+  const [orcamentos, clientes] = await Promise.all([listarOrcamentos(statusFiltro), listarClientes()]);
   const nomeCliente = new Map(clientes.map((c) => [c.id, c.nome]));
 
   return (
     <>
       <PageHeader
-        titulo="Contratos"
-        legenda="Reservas confirmadas de estoque"
+        titulo="Orçamentos"
+        legenda="Propostas de preço — não reservam estoque até serem convertidas em contrato"
         acao={
-          <Link href="/contratos/novo" className="btn btn-p">
-            + Novo contrato
+          <Link href="/orcamentos/novo" className="btn btn-p">
+            + Novo orçamento
           </Link>
         }
       />
       <div style={{ padding: "28px 34px 60px", flex: 1 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-          {([undefined, "CONFIRMADO", "CONCLUIDO", "CANCELADO"] as const).map((s) => (
+          {([undefined, "PENDENTE", "CONVERTIDO", "CANCELADO"] as const).map((s) => (
             <Link
               key={s ?? "todos"}
-              href={s ? `/contratos?status=${s}` : "/contratos"}
+              href={s ? `/orcamentos?status=${s}` : "/orcamentos"}
               className={s === statusFiltro || (!s && !statusFiltro) ? "btn btn-p btn-sm" : "btn btn-g btn-sm"}
             >
               {s ? ROTULO_STATUS[s] : "Todos"}
@@ -64,28 +64,28 @@ export default async function ContratosPage({
               </tr>
             </thead>
             <tbody>
-              {contratos.map((c) => (
-                <tr key={c.id} style={{ borderTop: "1px solid var(--line)" }}>
-                  <td style={td}>#{c.numero}</td>
-                  <td style={td}>{nomeCliente.get(c.clienteId) ?? "—"}</td>
-                  <td style={td}>{c.evento}</td>
+              {orcamentos.map((o) => (
+                <tr key={o.id} style={{ borderTop: "1px solid var(--line)" }}>
+                  <td style={td}>#{o.numero}</td>
+                  <td style={td}>{nomeCliente.get(o.clienteId) ?? "—"}</td>
+                  <td style={td}>{o.evento}</td>
                   <td style={td}>
-                    {new Date(c.inicio).toLocaleDateString("pt-BR")} – {new Date(c.fim).toLocaleDateString("pt-BR")}
+                    {new Date(o.inicio).toLocaleDateString("pt-BR")} – {new Date(o.fim).toLocaleDateString("pt-BR")}
                   </td>
                   <td style={td}>
-                    <span style={{ color: COR_STATUS[c.status], fontWeight: 600 }}>{ROTULO_STATUS[c.status]}</span>
+                    <span style={{ color: COR_STATUS[o.status], fontWeight: 600 }}>{ROTULO_STATUS[o.status]}</span>
                   </td>
                   <td style={{ ...td, textAlign: "right" }}>
-                    <Link href={`/contratos/${c.id}`} className="btn btn-g btn-sm">
+                    <Link href={`/orcamentos/${o.id}`} className="btn btn-g btn-sm">
                       Ver
                     </Link>
                   </td>
                 </tr>
               ))}
-              {contratos.length === 0 && (
+              {orcamentos.length === 0 && (
                 <tr>
                   <td style={td} colSpan={6}>
-                    Nenhum contrato encontrado.
+                    Nenhum orçamento encontrado.
                   </td>
                 </tr>
               )}

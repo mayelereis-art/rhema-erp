@@ -9,7 +9,8 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/painel", icone: "◆", rotulo: "Painel" },
   { href: "/disponibilidade", icone: "◷", rotulo: "Disponibilidade" },
-  { href: "/contratos", icone: "✦", rotulo: "Orçamentos & Contratos" },
+  { href: "/orcamentos", icone: "✎", rotulo: "Orçamentos" },
+  { href: "/contratos", icone: "✦", rotulo: "Contratos" },
   { href: "/logistica", icone: "🚚", rotulo: "Logística" },
   { href: "/catalogo", icone: "▣", rotulo: "Catálogo" },
   { href: "/clientes", icone: "◑", rotulo: "Clientes" },

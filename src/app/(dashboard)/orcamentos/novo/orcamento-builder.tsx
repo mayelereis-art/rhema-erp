@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Cliente, ItemContrato, ModoLogistica, Produto, TipoServico, Usuario } from "@/lib/firestore-schema";
 import { criarCliente } from "@/lib/clientes";
-import { criarContrato, validarDisponibilidadeContrato, type ErroDisponibilidade } from "@/lib/contratos";
+import { criarOrcamento } from "@/lib/orcamentos";
 import { calcularRateio, gerarParcelas } from "@/lib/rateio";
 
 function hoje() {
@@ -16,7 +16,7 @@ const MAPA_TIPO: Record<TipoServico, "presencial" | "pegmonte"> = {
   PEGMONTE: "pegmonte",
 };
 
-export function ContratoBuilder({
+export function OrcamentoBuilder({
   clientes: clientesIniciais,
   produtos,
   usuarios,
@@ -40,7 +40,6 @@ export function ContratoBuilder({
   const [itens, setItens] = useState<ItemContrato[]>([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [quantidadeSelecionada, setQuantidadeSelecionada] = useState(1);
-  const [erros, setErros] = useState<ErroDisponibilidade[]>([]);
   const [pendente, iniciar] = useTransition();
 
   const total = useMemo(() => itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), [itens]);
@@ -74,7 +73,6 @@ export function ContratoBuilder({
     });
     setProdutoSelecionado("");
     setQuantidadeSelecionada(1);
-    setErros([]);
   }
 
   function removerItem(produtoId: string) {
@@ -92,13 +90,7 @@ export function ContratoBuilder({
     }
 
     iniciar(async () => {
-      const validacao = await validarDisponibilidadeContrato(itens, inicio, fim);
-      if (validacao.length > 0) {
-        setErros(validacao);
-        return;
-      }
-
-      const resultado = await criarContrato({
+      const { id } = await criarOrcamento({
         clienteId,
         evento,
         inicio,
@@ -110,18 +102,17 @@ export function ContratoBuilder({
         endereco: modoLogistica === "ENTREGA" ? endereco : undefined,
         itens,
       });
-
-      if (resultado.ok) {
-        router.push(`/contratos/${resultado.id}`);
-      } else {
-        setErros(resultado.erros);
-      }
+      router.push(`/orcamentos/${id}`);
     });
   }
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <div style={{ background: "var(--cream)", border: "1px solid var(--line)", borderRadius: "var(--r)", padding: "10px 14px", fontSize: 12.5, color: "var(--ink-soft)" }}>
+          Este orçamento não reserva estoque — a checagem de disponibilidade só acontece quando você converter em contrato.
+        </div>
+
         <Secao titulo="Cliente e evento">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Campo label="Cliente">
@@ -148,10 +139,10 @@ export function ContratoBuilder({
             <Campo label="Evento">
               <input value={evento} onChange={(e) => setEvento(e.target.value)} style={campoStyle} placeholder="Aniversário, chá de bebê..." />
             </Campo>
-            <Campo label="Retirada">
+            <Campo label="Início da locação">
               <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} style={campoStyle} />
             </Campo>
-            <Campo label="Devolução">
+            <Campo label="Término da locação">
               <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} style={campoStyle} />
             </Campo>
           </div>
@@ -191,37 +182,27 @@ export function ContratoBuilder({
                 </tr>
               </thead>
               <tbody>
-                {itens.map((i) => {
-                  const erro = erros.find((e) => e.produtoId === i.produtoId);
-                  return (
-                    <tr key={i.produtoId} style={{ borderTop: "1px solid var(--line)" }}>
-                      <td style={{ padding: "6px 0" }}>
-                        {nomeProduto(i.produtoId)}
-                        {erro && (
-                          <div style={{ color: "var(--rose-deep)", fontSize: 11.5 }}>
-                            Só há {erro.livre} livre(s) no período (pedido: {erro.pedido}).
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: "6px 0", textAlign: "right" }}>{i.quantidade}</td>
-                      <td style={{ padding: "6px 0", textAlign: "right" }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={i.precoUnitario}
-                          onChange={(e) => atualizarPreco(i.produtoId, Number(e.target.value))}
-                          style={{ width: 90, textAlign: "right", padding: "4px 6px", borderRadius: 6, border: "1px solid var(--line)" }}
-                        />
-                      </td>
-                      <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(i.quantidade * i.precoUnitario).toFixed(2)}</td>
-                      <td style={{ padding: "6px 0", textAlign: "right" }}>
-                        <button type="button" className="btn btn-x" onClick={() => removerItem(i.produtoId)}>
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {itens.map((i) => (
+                  <tr key={i.produtoId} style={{ borderTop: "1px solid var(--line)" }}>
+                    <td style={{ padding: "6px 0" }}>{nomeProduto(i.produtoId)}</td>
+                    <td style={{ padding: "6px 0", textAlign: "right" }}>{i.quantidade}</td>
+                    <td style={{ padding: "6px 0", textAlign: "right" }}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={i.precoUnitario}
+                        onChange={(e) => atualizarPreco(i.produtoId, Number(e.target.value))}
+                        style={{ width: 90, textAlign: "right", padding: "4px 6px", borderRadius: 6, border: "1px solid var(--line)" }}
+                      />
+                    </td>
+                    <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(i.quantidade * i.precoUnitario).toFixed(2)}</td>
+                    <td style={{ padding: "6px 0", textAlign: "right" }}>
+                      <button type="button" className="btn btn-x" onClick={() => removerItem(i.produtoId)}>
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -266,7 +247,7 @@ export function ContratoBuilder({
 
         <div style={{ display: "flex", gap: 10 }}>
           <button className="btn btn-p" disabled={pendente} onClick={handleSalvar}>
-            {pendente ? "Salvando..." : "Criar contrato"}
+            {pendente ? "Salvando..." : "Salvar orçamento"}
           </button>
         </div>
       </div>
@@ -274,10 +255,10 @@ export function ContratoBuilder({
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Secao titulo="Resumo">
           <div style={{ fontFamily: "var(--font-d)", fontSize: 24 }}>R$ {total.toFixed(2)}</div>
-          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 2 }}>Total do contrato</div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 2 }}>Total do orçamento</div>
         </Secao>
 
-        <Secao titulo={`Rateio societário · ${rateio.regra.rotulo}`}>
+        <Secao titulo={`Rateio societário (estimado) · ${rateio.regra.rotulo}`}>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 8 }}>
             Custos: R$ {rateio.custos.toFixed(2)} · Lucro líquido: R$ {rateio.lucro.toFixed(2)}
           </div>
@@ -292,7 +273,7 @@ export function ContratoBuilder({
         </Secao>
 
         {parcelas.length > 0 && (
-          <Secao titulo="Parcelas">
+          <Secao titulo="Parcelas (estimadas, se confirmado)">
             {parcelas.map((p) => (
               <div key={p.rotulo} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}>
                 <span>{p.rotulo}</span>

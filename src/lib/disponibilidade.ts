@@ -3,7 +3,8 @@
  *
  * Um produto não pode ser alugado além do estoque dentro de um intervalo de
  * datas que se sobreponha. "Comprometido" = soma das quantidades em contratos
- * (ORCAMENTO ou CONFIRMADO) cujo intervalo de datas se sobrepõe ao período consultado.
+ * CONFIRMADO cujo intervalo de datas se sobrepõe ao período consultado.
+ * Orçamentos (src/lib/orcamentos.ts) não entram aqui — não reservam estoque.
  *
  * As funções puras abaixo não tocam o Firestore — são testáveis isoladamente.
  * O acesso a dados fica em consultarDisponibilidade/verificarDisponivel, no fim do arquivo.
@@ -18,13 +19,13 @@ export interface ContratoPeriodo {
   id: string;
   inicio: Date;
   fim: Date;
-  status: "ORCAMENTO" | "CONFIRMADO" | "CONCLUIDO" | "CANCELADO";
+  status: "CONFIRMADO" | "CONCLUIDO" | "CANCELADO";
   itens: ItemPeriodo[];
 }
 
-// Apenas ORCAMENTO e CONFIRMADO comprometem estoque; CONCLUIDO já devolveu,
-// CANCELADO nunca chegou a sair.
-const STATUS_QUE_COMPROMETEM = new Set(["ORCAMENTO", "CONFIRMADO"]);
+// Apenas CONFIRMADO comprometem estoque; CONCLUIDO já devolveu, CANCELADO
+// nunca chegou a sair.
+const STATUS_QUE_COMPROMETEM = new Set(["CONFIRMADO"]);
 
 /** Dois intervalos [aInicio,aFim] e [bInicio,bFim] se sobrepõem? */
 export function seSobrepoe(aInicio: Date, aFim: Date, bInicio: Date, bFim: Date): boolean {
@@ -33,7 +34,7 @@ export function seSobrepoe(aInicio: Date, aFim: Date, bInicio: Date, bFim: Date)
 
 /**
  * Soma a quantidade de `produtoId` comprometida no período [inicio, fim],
- * considerando apenas contratos em ORCAMENTO/CONFIRMADO que se sobrepõem.
+ * considerando apenas contratos CONFIRMADO que se sobrepõem.
  * `ignorarContratoId` serve para excluir o próprio contrato ao editá-lo.
  */
 export function calcularComprometido(

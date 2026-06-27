@@ -97,7 +97,6 @@ export interface DadosContrato {
   modoLogistica: ModoLogistica;
   endereco?: string;
   itens: ItemContrato[];
-  status: StatusContrato;
 }
 
 export interface ErroDisponibilidade {
@@ -146,7 +145,7 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
     evento: dados.evento,
     inicio: Timestamp.fromDate(new Date(dados.inicio)),
     fim: Timestamp.fromDate(new Date(dados.fim)),
-    status: dados.status,
+    status: "CONFIRMADO" as StatusContrato,
     tipoServico: dados.tipoServico,
     custos: dados.custos,
     executoraId: dados.executoraId ?? null,

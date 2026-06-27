@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
 import { COLECOES } from "./firestore-schema";
-import { criarContrato, type ErroDisponibilidade } from "./contratos";
+import { criarOrcamento } from "./orcamentos";
 
 const ItemSolicitado = z.object({
   produtoId: z.string().min(1),
@@ -37,7 +37,7 @@ async function buscarOuCriarClientePorTelefone(nome: string, telefone: string): 
  */
 export async function solicitarOrcamentoPublico(
   dadosBrutos: DadosSolicitacaoOrcamento
-): Promise<{ ok: true; numero: number } | { ok: false; erro: string; erros?: ErroDisponibilidade[] }> {
+): Promise<{ ok: true; numero: number } | { ok: false; erro: string }> {
   const parse = SolicitacaoOrcamento.safeParse(dadosBrutos);
   if (!parse.success) {
     return { ok: false, erro: "Dados inválidos. Confira o formulário e tente novamente." };
@@ -60,7 +60,7 @@ export async function solicitarOrcamentoPublico(
 
   const clienteId = await buscarOuCriarClientePorTelefone(dados.nomeCliente, dados.telefone);
 
-  const resultado = await criarContrato({
+  const { id } = await criarOrcamento({
     clienteId,
     evento: dados.evento || "Solicitação via loja virtual",
     inicio: dados.inicio,
@@ -69,13 +69,8 @@ export async function solicitarOrcamentoPublico(
     custos: 0,
     modoLogistica: "RETIRADA",
     itens: itensComPreco,
-    status: "ORCAMENTO",
   });
 
-  if (!resultado.ok) {
-    return { ok: false, erro: "Alguns itens não estão disponíveis no período escolhido.", erros: resultado.erros };
-  }
-
-  const doc = await adminDb.collection(COLECOES.contratos).doc(resultado.id).get();
+  const doc = await adminDb.collection(COLECOES.orcamentos).doc(id).get();
   return { ok: true, numero: doc.data()!.numero };
 }

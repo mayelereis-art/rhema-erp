@@ -27,13 +27,6 @@ describe("calcularComprometido", () => {
       itens: [{ produtoId: "arco", quantidade: 2 }],
     },
     {
-      id: "c2",
-      inicio: d("2026-07-04"),
-      fim: d("2026-07-06"),
-      status: "ORCAMENTO",
-      itens: [{ produtoId: "arco", quantidade: 1 }],
-    },
-    {
       id: "c3",
       inicio: d("2026-07-04"),
       fim: d("2026-07-05"),
@@ -49,14 +42,14 @@ describe("calcularComprometido", () => {
     },
   ];
 
-  it("soma apenas contratos em ORCAMENTO/CONFIRMADO que se sobrepõem ao período", () => {
+  it("soma apenas contratos CONFIRMADO que se sobrepõem ao período", () => {
     const total = calcularComprometido(contratos, "arco", d("2026-07-03"), d("2026-07-05"));
-    expect(total).toBe(3); // c1 (2) + c2 (1); ignora c3 (cancelado) e c4 (fora do período)
+    expect(total).toBe(2); // c1 (2); ignora c3 (cancelado) e c4 (fora do período)
   });
 
   it("ignora o próprio contrato ao excluí-lo (edição)", () => {
     const total = calcularComprometido(contratos, "arco", d("2026-07-03"), d("2026-07-05"), "c1");
-    expect(total).toBe(1); // só c2
+    expect(total).toBe(0);
   });
 
   it("retorna 0 fora de qualquer período comprometido", () => {
