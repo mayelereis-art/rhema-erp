@@ -73,16 +73,20 @@ export function ContratoDetalheClient({
             borderBottom: "1px solid var(--line)",
           }}
         >
-          <div>
-            <div style={{ fontFamily: "var(--font-d)", fontSize: 22, fontWeight: 600 }}>
-              Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
-            </div>
-            <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 4, lineHeight: 1.5 }}>
-              {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj}
-              <br />
-              {EMPRESA.telefone} · {EMPRESA.email}
-              <br />
-              {EMPRESA.endereco}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-rhema.png" alt="Rhema Decorações" style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontFamily: "var(--font-d)", fontSize: 22, fontWeight: 600 }}>
+                Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
+              </div>
+              <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 4, lineHeight: 1.5 }}>
+                {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj}
+                <br />
+                {EMPRESA.telefone} · {EMPRESA.email}
+                <br />
+                {EMPRESA.endereco}
+              </div>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
