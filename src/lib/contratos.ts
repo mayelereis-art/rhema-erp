@@ -41,16 +41,23 @@ function serializar(id: string, d: FirebaseFirestore.DocumentData): ContratoComI
   };
 }
 
-export async function listarContratos(statusFiltro?: StatusContrato): Promise<ContratoComId[]> {
-  let query = adminDb.collection(COLECOES.contratos).orderBy("numero", "desc") as FirebaseFirestore.Query;
-  if (statusFiltro) query = query.where("status", "==", statusFiltro);
-  const snap = await query.get();
+// Lê a coleção inteira e filtra/ordena em memória. O volume de contratos de um
+// negócio local de decoração é pequeno — evita depender de índices compostos
+// do Firestore (que podem levar minutos para provisionar) para cada combinação
+// de filtro + ordenação usada pelas telas abaixo.
+async function listarTodosContratos(): Promise<ContratoComId[]> {
+  const snap = await adminDb.collection(COLECOES.contratos).get();
   return snap.docs.map((doc) => serializar(doc.id, doc.data()));
 }
 
+export async function listarContratos(statusFiltro?: StatusContrato): Promise<ContratoComId[]> {
+  const todos = await listarTodosContratos();
+  return todos.filter((c) => !statusFiltro || c.status === statusFiltro).sort((a, b) => b.numero - a.numero);
+}
+
 export async function listarContratosPorCliente(clienteId: string): Promise<ContratoComId[]> {
-  const snap = await adminDb.collection(COLECOES.contratos).where("clienteId", "==", clienteId).orderBy("numero", "desc").get();
-  return snap.docs.map((doc) => serializar(doc.id, doc.data()));
+  const todos = await listarTodosContratos();
+  return todos.filter((c) => c.clienteId === clienteId).sort((a, b) => b.numero - a.numero);
 }
 
 export async function obterContrato(id: string): Promise<ContratoComId | null> {
@@ -180,8 +187,10 @@ export async function marcarParcelaPaga(contratoId: string, indiceParcela: numbe
 
 /** Lista contratos confirmados para a tela de Logística, ordenados pela data de retirada. */
 export async function listarContratosLogistica(): Promise<ContratoComId[]> {
-  const snap = await adminDb.collection(COLECOES.contratos).where("status", "==", "CONFIRMADO").orderBy("inicio", "asc").get();
-  return snap.docs.map((doc) => serializar(doc.id, doc.data()));
+  const todos = await listarTodosContratos();
+  return todos
+    .filter((c) => c.status === "CONFIRMADO")
+    .sort((a, b) => new Date(a.inicio).getTime() - new Date(b.inicio).getTime());
 }
 
 export async function marcarSaida(id: string, saidaEntregue: boolean) {
@@ -207,6 +216,8 @@ export async function atualizarContratoFinanceiro(id: string, dados: { custos: n
 
 /** Lista contratos fechados (CONFIRMADO/CONCLUIDO) para a tela de Rateio. */
 export async function listarContratosFechados(): Promise<ContratoComId[]> {
-  const snap = await adminDb.collection(COLECOES.contratos).where("status", "in", ["CONFIRMADO", "CONCLUIDO"]).orderBy("numero", "desc").get();
-  return snap.docs.map((doc) => serializar(doc.id, doc.data()));
+  const todos = await listarTodosContratos();
+  return todos
+    .filter((c) => c.status === "CONFIRMADO" || c.status === "CONCLUIDO")
+    .sort((a, b) => b.numero - a.numero);
 }
