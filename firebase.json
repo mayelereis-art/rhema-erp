@@ -5,7 +5,8 @@
     "ignore": ["node_modules", ".git", "firebase-debug.log"]
   },
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "emulators": {
     "auth": { "port": 9099 },
