@@ -18,6 +18,7 @@ export function Sidebar({ papel, nome }: { papel: string; nome: string }) {
 
   return (
     <aside
+      className="no-print"
       style={{
         width: 230,
         flexShrink: 0,

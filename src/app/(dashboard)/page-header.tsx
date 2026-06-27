@@ -9,6 +9,7 @@ export function PageHeader({
 }) {
   return (
     <header
+      className="no-print"
       style={{
         padding: "22px 34px 18px",
         borderBottom: "1px solid var(--line)",

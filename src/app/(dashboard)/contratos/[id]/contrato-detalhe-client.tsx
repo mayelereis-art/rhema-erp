@@ -117,7 +117,7 @@ export function ContratoDetalheClient({
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <div className="no-print" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Secao titulo="Ações">
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button className="btn btn-g" onClick={() => window.print()}>

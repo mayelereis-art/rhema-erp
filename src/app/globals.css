@@ -78,3 +78,18 @@ a {
   border-color: var(--rose);
   color: var(--rose);
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  #documento-contrato {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    grid-column: 1 / -1;
+  }
+}
