@@ -17,6 +17,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Protege todas as rotas internas, exceto login, loja pública, api de auth e assets.
-  matcher: ["/((?!login|loja|api/auth|_next/static|_next/image|favicon.ico).*)"],
+  // Protege todas as rotas internas, exceto login, loja pública, api de auth,
+  // assets internos do Next e arquivos estáticos da pasta public (qualquer
+  // caminho com extensão, ex.: logo-rhema.png).
+  matcher: ["/((?!login|loja|api/auth|_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
 };
