@@ -151,8 +151,23 @@ function Grade({
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
       {produtos.map((p) => (
         <div key={p.id} style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: "var(--r)", overflow: "hidden", boxShadow: "var(--shadow)", display: "flex", flexDirection: "column" }}>
-          <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42, background: "linear-gradient(135deg,#f7ede2,#f3e3ea)" }}>
-            {p.emoji}
+          <div
+            style={{
+              height: 120,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 42,
+              background: p.fotoUrl ? "var(--cream)" : "linear-gradient(135deg,#f7ede2,#f3e3ea)",
+              overflow: "hidden",
+            }}
+          >
+            {p.fotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.fotoUrl} alt={p.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              p.emoji
+            )}
           </div>
           <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column" }}>
             <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.nome}</div>
