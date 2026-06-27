@@ -31,12 +31,16 @@ export function Sidebar({ papel, nome }: { papel: string; nome: string }) {
         height: "100vh",
       }}
     >
-      <div style={{ padding: "26px 22px 20px" }}>
-        <div style={{ fontFamily: "var(--font-d)", fontSize: 23, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1 }}>
-          Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
-        </div>
-        <div style={{ fontSize: 10.5, letterSpacing: 2.5, textTransform: "uppercase", color: "#a99fc4", marginTop: 6 }}>
-          Gestão de Locação
+      <div style={{ padding: "26px 22px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-rhema.png" alt="Rhema Decorações" style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontFamily: "var(--font-d)", fontSize: 23, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1 }}>
+            Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
+          </div>
+          <div style={{ fontSize: 10.5, letterSpacing: 2.5, textTransform: "uppercase", color: "#a99fc4", marginTop: 6 }}>
+            Gestão de Locação
+          </div>
         </div>
       </div>
 
