@@ -5,15 +5,23 @@ import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
 import { COLECOES, type Cliente } from "./firestore-schema";
 
+// `criadoEm` é um Timestamp do Admin SDK — não é serializável ao atravessar a
+// fronteira servidor/cliente do React, então é descartado aqui (a UI não usa).
 export async function listarClientes(): Promise<Cliente[]> {
   const snap = await adminDb.collection(COLECOES.clientes).orderBy("nome").get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Cliente);
+  return snap.docs.map((doc) => {
+    const { criadoEm, ...resto } = doc.data();
+    void criadoEm;
+    return { id: doc.id, ...resto } as Cliente;
+  });
 }
 
 export async function obterCliente(id: string): Promise<Cliente | null> {
   const doc = await adminDb.collection(COLECOES.clientes).doc(id).get();
   if (!doc.exists) return null;
-  return { id: doc.id, ...doc.data() } as Cliente;
+  const { criadoEm, ...resto } = doc.data()!;
+  void criadoEm;
+  return { id: doc.id, ...resto } as Cliente;
 }
 
 export interface DadosCliente {

@@ -5,9 +5,15 @@ import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
 import { COLECOES, type Categoria, type Fornecedor, type Produto } from "./firestore-schema";
 
+// `criadoEm` é um Timestamp do Admin SDK — não é serializável ao atravessar a
+// fronteira servidor/cliente do React, então é descartado aqui (a UI não usa).
 export async function listarProdutos(): Promise<Produto[]> {
   const snap = await adminDb.collection(COLECOES.produtos).orderBy("nome").get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Produto);
+  return snap.docs.map((doc) => {
+    const { criadoEm, ...resto } = doc.data();
+    void criadoEm;
+    return { id: doc.id, ...resto } as Produto;
+  });
 }
 
 export async function listarCategorias(): Promise<Categoria[]> {
@@ -17,7 +23,11 @@ export async function listarCategorias(): Promise<Categoria[]> {
 
 export async function listarFornecedores(): Promise<Fornecedor[]> {
   const snap = await adminDb.collection(COLECOES.fornecedores).orderBy("nome").get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Fornecedor);
+  return snap.docs.map((doc) => {
+    const { criadoEm, ...resto } = doc.data();
+    void criadoEm;
+    return { id: doc.id, ...resto } as Fornecedor;
+  });
 }
 
 export interface DadosProduto {
