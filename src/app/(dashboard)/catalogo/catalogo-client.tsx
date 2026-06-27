@@ -11,6 +11,7 @@ const VAZIO: DadosProduto = {
   nome: "",
   emoji: "📦",
   fotoUrl: "",
+  codigo: "",
   precoDiaria: 0,
   quantidade: 1,
   destaque: false,
@@ -18,6 +19,7 @@ const VAZIO: DadosProduto = {
   fornecedorId: "",
   custoAquisicao: 0,
   percentualRecuperacao: PERCENTUAL_RECUPERACAO_PADRAO,
+  valorReposicao: 0,
 };
 
 export function CatalogoClient({
@@ -148,6 +150,7 @@ export function CatalogoClient({
               )}
             </div>
             <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column" }}>
+              {p.codigo && <div style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Cód. {p.codigo}</div>}
               <div style={{ fontWeight: 600, fontSize: 14.5 }}>{p.nome}</div>
               <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600, textTransform: "uppercase", marginTop: 3 }}>
                 {nomeCategoria(p.categoriaId)}
@@ -217,6 +220,7 @@ function ProdutoForm({
           nome: inicial.nome,
           emoji: inicial.emoji,
           fotoUrl: inicial.fotoUrl ?? "",
+          codigo: inicial.codigo ?? "",
           precoDiaria: inicial.precoDiaria,
           quantidade: inicial.quantidade,
           destaque: inicial.destaque,
@@ -224,6 +228,7 @@ function ProdutoForm({
           fornecedorId: inicial.fornecedorId ?? "",
           custoAquisicao: inicial.custoAquisicao ?? 0,
           percentualRecuperacao: inicial.percentualRecuperacao ?? PERCENTUAL_RECUPERACAO_PADRAO,
+          valorReposicao: inicial.valorReposicao ?? 0,
         }
       : VAZIO
   );
@@ -257,6 +262,7 @@ function ProdutoForm({
       categoriaId: dados.categoriaId || undefined,
       fornecedorId: dados.fornecedorId || undefined,
       fotoUrl: dados.fotoUrl || undefined,
+      codigo: dados.codigo || undefined,
     };
     if (inicial) {
       await atualizarProduto(inicial.id, payload);
@@ -290,6 +296,14 @@ function ProdutoForm({
 
       <Campo label="Nome">
         <input required value={dados.nome} onChange={(e) => setDados({ ...dados, nome: e.target.value })} style={campoStyle} />
+      </Campo>
+      <Campo label="Código (opcional)">
+        <input
+          value={dados.codigo}
+          onChange={(e) => setDados({ ...dados, codigo: e.target.value })}
+          style={campoStyle}
+          placeholder="ex.: 000012"
+        />
       </Campo>
       <Campo label="Emoji (se não tiver foto)">
         <input value={dados.emoji} onChange={(e) => setDados({ ...dados, emoji: e.target.value })} style={campoStyle} />
@@ -351,6 +365,16 @@ function ProdutoForm({
           value={dados.quantidade}
           onChange={(e) => setDados({ ...dados, quantidade: Number(e.target.value) })}
           style={campoStyle}
+        />
+      </Campo>
+      <Campo label="Valor de reposição (avaria/perda)">
+        <input
+          type="number"
+          step="0.01"
+          value={dados.valorReposicao}
+          onChange={(e) => setDados({ ...dados, valorReposicao: Number(e.target.value) })}
+          style={campoStyle}
+          placeholder="cobrado em caso de avaria irreparável"
         />
       </Campo>
       <Campo label="Categoria">

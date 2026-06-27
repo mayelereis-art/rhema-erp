@@ -19,7 +19,9 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     listarProdutos(),
     listarUsuarios(),
   ]);
-  const infoProduto = Object.fromEntries(produtos.map((p) => [p.id, { nome: p.nome, fotoUrl: p.fotoUrl }]));
+  const infoProduto = Object.fromEntries(
+    produtos.map((p) => [p.id, { nome: p.nome, fotoUrl: p.fotoUrl, codigo: p.codigo, valorReposicao: p.valorReposicao }])
+  );
   const nomeAtendente = usuarios.find((u) => u.id === contrato.executoraId)?.nome;
 
   const total = contrato.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);

@@ -34,6 +34,7 @@ export interface DadosProduto {
   nome: string;
   emoji: string;
   fotoUrl?: string;
+  codigo?: string;
   precoDiaria: number;
   quantidade: number;
   destaque: boolean;
@@ -41,6 +42,7 @@ export interface DadosProduto {
   fornecedorId?: string;
   custoAquisicao?: number;
   percentualRecuperacao?: number;
+  valorReposicao?: number;
 }
 
 export async function criarProduto(dados: DadosProduto) {

@@ -6,7 +6,7 @@ import type { ContratoComId } from "@/lib/contratos";
 import { atualizarStatusContrato, marcarParcelaPaga } from "@/lib/contratos";
 import type { ResultadoRateio } from "@/lib/rateio";
 import { EMPRESA } from "@/lib/empresa";
-import { CLAUSULAS_CONTRATO } from "@/lib/contrato-clausulas";
+import { obterClausulas, rotuloModalidade } from "@/lib/contrato-clausulas";
 
 const PROXIMO_STATUS: Record<string, { status: string; rotulo: string } | undefined> = {
   CONFIRMADO: { status: "CONCLUIDO", rotulo: "Marcar como concluído" },
@@ -28,7 +28,7 @@ export function ContratoDetalheClient({
 }: {
   contrato: ContratoComId;
   cliente: Cliente | null;
-  infoProduto: Record<string, { nome: string; fotoUrl?: string }>;
+  infoProduto: Record<string, { nome: string; fotoUrl?: string; codigo?: string; valorReposicao?: number }>;
   nomeAtendente?: string;
   total: number;
   rateio: ResultadoRateio;
@@ -48,10 +48,14 @@ export function ContratoDetalheClient({
     mudarStatus("CANCELADO");
   }
 
-  const linkWhatsApp = linkWhatsAppDoContrato(cliente?.telefone, contrato.numero, contrato.evento, total);
+  const valorMontagem = contrato.tipoServico === "PRESENCIAL" ? contrato.custos : 0;
+  const valorTotalContrato = total + valorMontagem;
+  const linkWhatsApp = linkWhatsAppDoContrato(cliente?.telefone, contrato.numero, contrato.evento, valorTotalContrato);
+  const valorTotalParcelas = contrato.parcelas.reduce((s, p) => s + p.valor, 0);
   const valorPago = contrato.parcelas.filter((p) => p.pago).reduce((s, p) => s + p.valor, 0);
-  const valorPendente = total - valorPago;
+  const valorPendente = valorTotalParcelas - valorPago;
   const numeroPedido = `${contrato.numero}`.padStart(3, "0");
+  const clausulas = obterClausulas(contrato.tipoServico);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
@@ -83,20 +87,25 @@ export function ContratoDetalheClient({
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 11, color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: 1.5 }}>
-              Contrato de locação
+              Contrato de locação de bens móveis
             </div>
             <div style={{ fontFamily: "var(--font-d)", fontSize: 18 }}>#{numeroPedido}</div>
             <span style={{ fontWeight: 700, color: "var(--rose-deep)" }}>{ROTULO_STATUS[contrato.status] ?? contrato.status}</span>
+            <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 2 }}>{rotuloModalidade(contrato.tipoServico)}</div>
           </div>
         </div>
 
+        <div style={{ fontSize: 12.5, marginBottom: 16, lineHeight: 1.6 }}>
+          <strong>LOCATÁRIO(A):</strong> {cliente?.nome ?? "—"}
+          {cliente?.documento && <> · CPF/CNPJ {cliente.documento}</>}
+          {cliente?.rg && <> · RG {cliente.rg}</>}
+          <br />
+          {cliente?.endereco && <>Endereço: {cliente.endereco} · </>}
+          Tel.: {cliente?.telefone ?? "—"}
+          {cliente?.email && <> · {cliente.email}</>}
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20, fontSize: 13.5 }}>
-          <div>
-            <strong>Cliente:</strong> {cliente?.nome ?? "—"}
-          </div>
-          <div>
-            <strong>Telefone:</strong> {cliente?.telefone ?? "—"}
-          </div>
           <div>
             <strong>Objetivo da locação:</strong> {contrato.evento}
           </div>
@@ -120,13 +129,19 @@ export function ContratoDetalheClient({
           )}
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, marginBottom: 16 }}>
+        <div style={{ fontFamily: "var(--font-d)", fontSize: 15, marginBottom: 8 }}>Anexo I — Relação de itens locados</div>
+        <div style={{ fontSize: 11, color: "var(--ink-soft)", marginBottom: 10 }}>
+          As fotos abaixo registram o estado dos itens na retirada/entrega e servem de prova das condições para conferência na devolução.
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 16 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
               <th style={{ padding: "6px 0" }}>Item</th>
               <th style={{ padding: "6px 0", textAlign: "right" }}>Qtd.</th>
-              <th style={{ padding: "6px 0", textAlign: "right" }}>Preço/diária</th>
+              <th style={{ padding: "6px 0", textAlign: "right" }}>Valor loc.</th>
               <th style={{ padding: "6px 0", textAlign: "right" }}>Subtotal</th>
+              <th style={{ padding: "6px 0", textAlign: "right" }}>Reposição</th>
             </tr>
           </thead>
           <tbody>
@@ -136,20 +151,44 @@ export function ContratoDetalheClient({
                 <tr key={i.produtoId} style={{ borderBottom: "1px solid var(--line)" }}>
                   <td style={{ padding: "6px 0" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {info?.fotoUrl && (
+                      {info?.fotoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={info.fotoUrl}
                           alt={info.nome}
                           style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 6, flexShrink: 0 }}
                         />
+                      ) : (
+                        <div
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 6,
+                            flexShrink: 0,
+                            border: "1px dashed var(--line)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 8,
+                            color: "var(--ink-soft)",
+                            textAlign: "center",
+                          }}
+                        >
+                          sem foto
+                        </div>
                       )}
-                      {info?.nome ?? i.produtoId}
+                      <div>
+                        {info?.codigo && <div style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Cód. {info.codigo}</div>}
+                        {info?.nome ?? i.produtoId}
+                      </div>
                     </div>
                   </td>
                   <td style={{ padding: "6px 0", textAlign: "right" }}>{i.quantidade}</td>
                   <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {i.precoUnitario.toFixed(2)}</td>
                   <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(i.quantidade * i.precoUnitario).toFixed(2)}</td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>
+                    {info?.valorReposicao ? `R$ ${info.valorReposicao.toFixed(2)}` : "valor de mercado"}
+                  </td>
                 </tr>
               );
             })}
@@ -157,10 +196,20 @@ export function ContratoDetalheClient({
         </table>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-          <div style={{ fontSize: 13, minWidth: 220 }}>
+          <div style={{ fontSize: 13, minWidth: 240 }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-              <span>Valor total</span>
+              <span>Valor da locação</span>
               <strong>R$ {total.toFixed(2)}</strong>
+            </div>
+            {valorMontagem > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                <span>Valor do serviço de montagem</span>
+                <strong>R$ {valorMontagem.toFixed(2)}</strong>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "1px solid var(--line)", marginTop: 4 }}>
+              <span>Valor total</span>
+              <strong>R$ {valorTotalContrato.toFixed(2)}</strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--sage)" }}>
               <span>Valor pago</span>
@@ -189,7 +238,7 @@ export function ContratoDetalheClient({
 
         <div className="clausulas-contrato" style={{ marginTop: 28, fontSize: 11.5, color: "var(--ink-soft)", lineHeight: 1.5 }}>
           <div style={{ fontFamily: "var(--font-d)", fontSize: 15, color: "var(--ink)", marginBottom: 10 }}>Termos e condições da locação</div>
-          {CLAUSULAS_CONTRATO.map((c, idx) => (
+          {clausulas.map((c, idx) => (
             <p key={c.titulo} style={{ marginBottom: 7 }}>
               <strong>{idx + 1}. {c.titulo}.</strong> {c.texto}
             </p>

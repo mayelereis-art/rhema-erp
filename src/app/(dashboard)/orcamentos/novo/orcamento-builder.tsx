@@ -44,8 +44,13 @@ export function OrcamentoBuilder({
   const [pendente, iniciar] = useTransition();
 
   const total = useMemo(() => itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), [itens]);
+  const valorMontagem = tipoServico === "PRESENCIAL" ? custos : 0;
+  const valorFaturado = total + valorMontagem;
   const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico]), [total, custos, tipoServico]);
-  const parcelas = useMemo(() => (total > 0 ? gerarParcelas(total, inicio, fim) : []), [total, inicio, fim]);
+  const parcelas = useMemo(
+    () => (valorFaturado > 0 ? gerarParcelas(valorFaturado, inicio, fim) : []),
+    [valorFaturado, inicio, fim]
+  );
 
   function nomeProduto(id: string) {
     return produtos.find((p) => p.id === id)?.nome ?? "";
@@ -260,7 +265,17 @@ export function OrcamentoBuilder({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Secao titulo="Resumo">
-          <div style={{ fontFamily: "var(--font-d)", fontSize: 24 }}>R$ {total.toFixed(2)}</div>
+          <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+            <span>Valor da locação</span>
+            <strong>R$ {total.toFixed(2)}</strong>
+          </div>
+          {valorMontagem > 0 && (
+            <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+              <span>Valor da montagem</span>
+              <strong>R$ {valorMontagem.toFixed(2)}</strong>
+            </div>
+          )}
+          <div style={{ fontFamily: "var(--font-d)", fontSize: 24, marginTop: 6 }}>R$ {valorFaturado.toFixed(2)}</div>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 2 }}>Total do orçamento</div>
         </Secao>
 

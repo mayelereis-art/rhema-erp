@@ -46,6 +46,7 @@ export interface Produto {
   nome: string;
   emoji: string;
   fotoUrl?: string;
+  codigo?: string; // código curto opcional (compatibilidade com o sistema antigo, ex.: "000012")
   precoDiaria: number;
   quantidade: number;
   destaque: boolean;
@@ -58,6 +59,9 @@ export interface Produto {
   // ficam por volta de 20%; itens duráveis (estrutura metálica, vaso) por volta
   // de 10%. Padrão: 15%.
   percentualRecuperacao?: number;
+  // Valor cobrado do locatário em caso de avaria irreparável/perda (cláusula
+  // de avarias do contrato). Se ausente, o contrato usa valor de mercado.
+  valorReposicao?: number;
   criadoEm: Timestamp;
 }
 
@@ -66,7 +70,9 @@ export interface Cliente {
   nome: string;
   telefone?: string;
   email?: string;
-  documento?: string;
+  documento?: string; // CPF ou CNPJ
+  rg?: string;
+  endereco?: string;
   criadoEm: Timestamp;
 }
 

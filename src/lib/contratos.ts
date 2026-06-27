@@ -137,7 +137,11 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
 
   const numero = await proximoNumero();
   const total = dados.itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
-  const parcelas = gerarParcelas(total, dados.inicio, dados.fim);
+  // Na modalidade presencial, o valor de montagem (custos) é cobrado do cliente
+  // junto da locação — ver Cláusula 4 do contrato. No Pegue&Monte não há serviço
+  // de montagem cobrado, então as parcelas cobrem só os itens.
+  const valorFaturado = total + (dados.tipoServico === "PRESENCIAL" ? dados.custos : 0);
+  const parcelas = gerarParcelas(valorFaturado, dados.inicio, dados.fim);
 
   const ref = await adminDb.collection(COLECOES.contratos).add({
     numero,

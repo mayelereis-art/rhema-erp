@@ -28,7 +28,9 @@ export interface DadosCliente {
   nome: string;
   telefone?: string;
   email?: string;
-  documento?: string;
+  documento?: string; // CPF ou CNPJ
+  rg?: string;
+  endereco?: string;
 }
 
 export async function criarCliente(dados: DadosCliente) {

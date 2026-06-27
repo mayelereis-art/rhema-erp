@@ -7,6 +7,7 @@ import type { OrcamentoComId } from "@/lib/orcamentos";
 import { cancelarOrcamento, converterEmContrato } from "@/lib/orcamentos";
 import type { ResultadoRateio } from "@/lib/rateio";
 import { EMPRESA } from "@/lib/empresa";
+import { rotuloModalidade } from "@/lib/contrato-clausulas";
 
 const ROTULO_STATUS: Record<string, string> = {
   PENDENTE: "Pendente",
@@ -24,13 +25,15 @@ export function OrcamentoDetalheClient({
 }: {
   orcamento: OrcamentoComId;
   cliente: Cliente | null;
-  infoProduto: Record<string, { nome: string; fotoUrl?: string }>;
+  infoProduto: Record<string, { nome: string; fotoUrl?: string; codigo?: string; valorReposicao?: number }>;
   nomeAtendente?: string;
   total: number;
   rateio: ResultadoRateio;
 }) {
   const router = useRouter();
   const [pendente, iniciar] = useTransition();
+  const valorMontagem = orcamento.tipoServico === "PRESENCIAL" ? orcamento.custos : 0;
+  const valorTotalOrcamento = total + valorMontagem;
 
   function cancelar() {
     if (!confirm("Cancelar este orçamento?")) return;
@@ -49,7 +52,7 @@ export function OrcamentoDetalheClient({
     });
   }
 
-  const linkWhatsApp = linkWhatsAppDoOrcamento(cliente?.telefone, orcamento.numero, orcamento.evento, total);
+  const linkWhatsApp = linkWhatsAppDoOrcamento(cliente?.telefone, orcamento.numero, orcamento.evento, valorTotalOrcamento);
   const numeroOrcamento = `${orcamento.numero}`.padStart(3, "0");
 
   return (
@@ -84,6 +87,7 @@ export function OrcamentoDetalheClient({
             <div style={{ fontSize: 11, color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: 1.5 }}>Orçamento</div>
             <div style={{ fontFamily: "var(--font-d)", fontSize: 18 }}>#{numeroOrcamento}</div>
             <span style={{ fontWeight: 700, color: "var(--gold)" }}>{ROTULO_STATUS[orcamento.status] ?? orcamento.status}</span>
+            <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 2 }}>{rotuloModalidade(orcamento.tipoServico)}</div>
           </div>
         </div>
 
@@ -94,6 +98,7 @@ export function OrcamentoDetalheClient({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20, fontSize: 13.5 }}>
           <div>
             <strong>Cliente:</strong> {cliente?.nome ?? "—"}
+            {cliente?.documento && <> · CPF/CNPJ {cliente.documento}</>}
           </div>
           <div>
             <strong>Telefone:</strong> {cliente?.telefone ?? "—"}
@@ -145,7 +150,10 @@ export function OrcamentoDetalheClient({
                           style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 6, flexShrink: 0 }}
                         />
                       )}
-                      {info?.nome ?? i.produtoId}
+                      <div>
+                        {info?.codigo && <div style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Cód. {info.codigo}</div>}
+                        {info?.nome ?? i.produtoId}
+                      </div>
                     </div>
                   </td>
                   <td style={{ padding: "6px 0", textAlign: "right" }}>{i.quantidade}</td>
@@ -157,7 +165,24 @@ export function OrcamentoDetalheClient({
           </tbody>
         </table>
 
-        <div style={{ textAlign: "right", fontFamily: "var(--font-d)", fontSize: 20 }}>Total: R$ {total.toFixed(2)}</div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ fontSize: 13, minWidth: 240 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+              <span>Valor da locação</span>
+              <strong>R$ {total.toFixed(2)}</strong>
+            </div>
+            {valorMontagem > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                <span>Valor do serviço de montagem</span>
+                <strong>R$ {valorMontagem.toFixed(2)}</strong>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderTop: "1px solid var(--line)", marginTop: 4, fontFamily: "var(--font-d)", fontSize: 17 }}>
+              <span>Total</span>
+              <strong>R$ {valorTotalOrcamento.toFixed(2)}</strong>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="no-print" style={{ display: "flex", flexDirection: "column", gap: 18 }}>

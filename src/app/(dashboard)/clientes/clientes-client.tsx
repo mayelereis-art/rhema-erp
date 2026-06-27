@@ -5,7 +5,7 @@ import Link from "next/link";
 import { atualizarCliente, criarCliente, excluirCliente, type DadosCliente } from "@/lib/clientes";
 import type { Cliente } from "@/lib/firestore-schema";
 
-const VAZIO: DadosCliente = { nome: "", telefone: "", email: "", documento: "" };
+const VAZIO: DadosCliente = { nome: "", telefone: "", email: "", documento: "", rg: "", endereco: "" };
 
 export function ClientesClient({ clientes }: { clientes: Cliente[] }) {
   const [editando, setEditando] = useState<Cliente | null>(null);
@@ -84,7 +84,16 @@ export function ClientesClient({ clientes }: { clientes: Cliente[] }) {
 
 function ClienteForm({ inicial, onFechar }: { inicial: Cliente | null; onFechar: () => void }) {
   const [dados, setDados] = useState<DadosCliente>(
-    inicial ? { nome: inicial.nome, telefone: inicial.telefone ?? "", email: inicial.email ?? "", documento: inicial.documento ?? "" } : VAZIO
+    inicial
+      ? {
+          nome: inicial.nome,
+          telefone: inicial.telefone ?? "",
+          email: inicial.email ?? "",
+          documento: inicial.documento ?? "",
+          rg: inicial.rg ?? "",
+          endereco: inicial.endereco ?? "",
+        }
+      : VAZIO
   );
   const [salvando, setSalvando] = useState(false);
 
@@ -128,6 +137,14 @@ function ClienteForm({ inicial, onFechar }: { inicial: Cliente | null; onFechar:
       <Campo label="CPF/CNPJ">
         <input value={dados.documento} onChange={(e) => setDados({ ...dados, documento: e.target.value })} style={campoStyle} />
       </Campo>
+      <Campo label="RG">
+        <input value={dados.rg} onChange={(e) => setDados({ ...dados, rg: e.target.value })} style={campoStyle} />
+      </Campo>
+      <div style={{ gridColumn: "1 / -1" }}>
+        <Campo label="Endereço">
+          <input value={dados.endereco} onChange={(e) => setDados({ ...dados, endereco: e.target.value })} style={campoStyle} />
+        </Campo>
+      </div>
       <div style={{ display: "flex", gap: 10 }}>
         <button type="submit" disabled={salvando} className="btn btn-p">
           {salvando ? "Salvando..." : "Salvar"}
