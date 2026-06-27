@@ -16,14 +16,35 @@ interface ParcelaLinha {
   pago: boolean;
 }
 
+function mesAtual() {
+  return new Date().toISOString().slice(0, 7); // "YYYY-MM"
+}
+
 export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinha[]; despesas: DespesaComId[] }) {
   const [pendente, iniciar] = useTransition();
   const [descricao, setDescricao] = useState("");
   const [vencimento, setVencimento] = useState(new Date().toISOString().slice(0, 10));
   const [valor, setValor] = useState(0);
+  const [mesFiltro, setMesFiltro] = useState(mesAtual());
+  const [verTudo, setVerTudo] = useState(false);
 
-  const totalAReceber = useMemo(() => aReceber.filter((p) => !p.pago).reduce((s, p) => s + p.valor, 0), [aReceber]);
-  const totalAPagar = useMemo(() => despesas.filter((d) => !d.pago).reduce((s, d) => s + d.valor, 0), [despesas]);
+  const aReceberFiltrado = useMemo(
+    () => (verTudo ? aReceber : aReceber.filter((p) => p.vencimento.slice(0, 7) === mesFiltro)),
+    [aReceber, mesFiltro, verTudo]
+  );
+  const despesasFiltradas = useMemo(
+    () => (verTudo ? despesas : despesas.filter((d) => d.vencimento.slice(0, 7) === mesFiltro)),
+    [despesas, mesFiltro, verTudo]
+  );
+
+  const totalAReceber = useMemo(
+    () => aReceberFiltrado.filter((p) => !p.pago).reduce((s, p) => s + p.valor, 0),
+    [aReceberFiltrado]
+  );
+  const totalAPagar = useMemo(
+    () => despesasFiltradas.filter((d) => !d.pago).reduce((s, d) => s + d.valor, 0),
+    [despesasFiltradas]
+  );
   const saldoProjetado = totalAReceber - totalAPagar;
 
   async function handleCriarDespesa(e: React.FormEvent) {
@@ -36,6 +57,25 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
 
   return (
     <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <input
+          type="month"
+          value={mesFiltro}
+          disabled={verTudo}
+          onChange={(e) => setMesFiltro(e.target.value)}
+          style={{ ...campoStyle, opacity: verTudo ? 0.5 : 1 }}
+        />
+        {mesFiltro !== mesAtual() && !verTudo && (
+          <button type="button" className="btn btn-g btn-sm" onClick={() => setMesFiltro(mesAtual())}>
+            Mês atual
+          </button>
+        )}
+        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+          <input type="checkbox" checked={verTudo} onChange={(e) => setVerTudo(e.target.checked)} />
+          Ver todos os meses
+        </label>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(165px, 1fr))", gap: 16, marginBottom: 26 }}>
         <Stat rotulo="A receber (pendente)" valor={totalAReceber} cor="var(--sage)" />
         <Stat rotulo="A pagar (pendente)" valor={totalAPagar} cor="var(--rose-deep)" />
@@ -43,10 +83,10 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "start" }}>
-        <Secao titulo="Contas a receber" sub="Parcelas dos contratos confirmados/concluídos">
+        <Secao titulo="Contas a receber" sub={verTudo ? "Todos os meses" : "Movimento do mês selecionado"}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <tbody>
-              {aReceber.map((p) => (
+              {aReceberFiltrado.map((p) => (
                 <tr key={`${p.contratoId}-${p.indice}`} style={{ borderTop: "1px solid var(--line)" }}>
                   <td style={tdCompacto}>
                     <Link href={`/contratos/${p.contratoId}`}>#{p.numero}</Link> · {p.cliente}
@@ -68,16 +108,16 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
                   </td>
                 </tr>
               ))}
-              {aReceber.length === 0 && (
+              {aReceberFiltrado.length === 0 && (
                 <tr>
-                  <td style={tdCompacto}>Nenhuma parcela.</td>
+                  <td style={tdCompacto}>Nenhuma parcela no período.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </Secao>
 
-        <Secao titulo="Contas a pagar" sub="Despesas da operação">
+        <Secao titulo="Contas a pagar" sub={verTudo ? "Todos os meses" : "Movimento do mês selecionado"}>
           <form onSubmit={handleCriarDespesa} style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
             <input
               placeholder="Descrição"
@@ -101,7 +141,7 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <tbody>
-              {despesas.map((d) => (
+              {despesasFiltradas.map((d) => (
                 <tr key={d.id} style={{ borderTop: "1px solid var(--line)" }}>
                   <td style={tdCompacto}>
                     {d.descricao}
@@ -126,9 +166,9 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
                   </td>
                 </tr>
               ))}
-              {despesas.length === 0 && (
+              {despesasFiltradas.length === 0 && (
                 <tr>
-                  <td style={tdCompacto}>Nenhuma despesa cadastrada.</td>
+                  <td style={tdCompacto}>Nenhuma despesa no período.</td>
                 </tr>
               )}
             </tbody>
