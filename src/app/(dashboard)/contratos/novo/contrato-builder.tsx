@@ -6,6 +6,7 @@ import type { Cliente, ItemContrato, ModoLogistica, Produto, TipoServico, Usuari
 import { criarCliente } from "@/lib/clientes";
 import { criarContrato, validarDisponibilidadeContrato, type ErroDisponibilidade } from "@/lib/contratos";
 import { calcularRateio, gerarParcelas } from "@/lib/rateio";
+import { CalculadoraCustoPresencial } from "../../calculadora-custo-presencial";
 
 function hoje() {
   return new Date().toISOString().slice(0, 10);
@@ -259,6 +260,11 @@ export function ContratoBuilder({
                 <Campo label="Endereço de entrega">
                   <input value={endereco} onChange={(e) => setEndereco(e.target.value)} style={campoStyle} />
                 </Campo>
+              </div>
+            )}
+            {tipoServico === "PRESENCIAL" && (
+              <div style={{ gridColumn: "1 / -1" }}>
+                <CalculadoraCustoPresencial onAplicar={setCustos} />
               </div>
             )}
           </div>

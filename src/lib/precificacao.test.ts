@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcularLocacoesParaRecuperar, calcularPrecoSugerido } from "./precificacao";
+import { calcularCustoServicoPresencial, calcularLocacoesParaRecuperar, calcularPrecoSugerido } from "./precificacao";
 
 describe("calcularPrecoSugerido", () => {
   it("aplica o percentual sobre o custo de aquisição", () => {
@@ -24,5 +24,15 @@ describe("calcularLocacoesParaRecuperar", () => {
   it("retorna null sem custo ou preço definidos", () => {
     expect(calcularLocacoesParaRecuperar(0, 150)).toBeNull();
     expect(calcularLocacoesParaRecuperar(1000, 0)).toBeNull();
+  });
+});
+
+describe("calcularCustoServicoPresencial", () => {
+  it("soma mão de obra (horas × valor/hora), deslocamento e desmontagem", () => {
+    expect(calcularCustoServicoPresencial({ horas: 3, valorHora: 80, deslocamento: 30, desmontagem: 50 })).toBe(320);
+  });
+
+  it("trata valores negativos/inválidos como zero", () => {
+    expect(calcularCustoServicoPresencial({ horas: -1, valorHora: 80, deslocamento: 0, desmontagem: 0 })).toBe(0);
   });
 });

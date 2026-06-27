@@ -6,6 +6,7 @@ import type { ContratoComId } from "@/lib/contratos";
 import { atualizarStatusContrato, marcarParcelaPaga } from "@/lib/contratos";
 import type { ResultadoRateio } from "@/lib/rateio";
 import { EMPRESA } from "@/lib/empresa";
+import { CLAUSULAS_CONTRATO } from "@/lib/contrato-clausulas";
 
 const PROXIMO_STATUS: Record<string, { status: string; rotulo: string } | undefined> = {
   CONFIRMADO: { status: "CONCLUIDO", rotulo: "Marcar como concluído" },
@@ -169,6 +170,25 @@ export function ContratoDetalheClient({
               </span>
             </div>
           ))}
+        </div>
+
+        <div className="clausulas-contrato" style={{ marginTop: 28, fontSize: 11.5, color: "var(--ink-soft)", lineHeight: 1.5 }}>
+          <div style={{ fontFamily: "var(--font-d)", fontSize: 15, color: "var(--ink)", marginBottom: 10 }}>Termos e condições da locação</div>
+          {CLAUSULAS_CONTRATO.map((c, idx) => (
+            <p key={c.titulo} style={{ marginBottom: 7 }}>
+              <strong>{idx + 1}. {c.titulo}.</strong> {c.texto}
+            </p>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, fontSize: 12.5, color: "var(--ink)" }}>
+            <div>
+              ___________________________________
+              <div style={{ marginTop: 4 }}>{EMPRESA.nomeFantasia} (Locadora)</div>
+            </div>
+            <div>
+              ___________________________________
+              <div style={{ marginTop: 4 }}>{cliente?.nome ?? "Contratante"}</div>
+            </div>
+          </div>
         </div>
       </div>
 

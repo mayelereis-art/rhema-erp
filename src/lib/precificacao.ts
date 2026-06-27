@@ -24,3 +24,26 @@ export function calcularLocacoesParaRecuperar(custoAquisicao: number, precoDiari
   if (!custoAquisicao || !precoDiaria) return null;
   return Math.ceil(custoAquisicao / precoDiaria);
 }
+
+/** Valor/hora padrão da decoradora no serviço presencial. */
+export const VALOR_HORA_DECORACAO_PADRAO = 80;
+
+export interface CustoServicoPresencial {
+  horas: number;
+  valorHora: number;
+  deslocamento: number;
+  desmontagem: number;
+}
+
+/**
+ * Custo do serviço presencial = mão de obra (horas × valor/hora) + deslocamento
+ * + desmontagem. Alimenta o campo "Custos do serviço" do orçamento/contrato,
+ * que por sua vez sai do lucro antes do rateio (ver src/lib/rateio.ts).
+ */
+export function calcularCustoServicoPresencial(c: CustoServicoPresencial): number {
+  const horas = Math.max(0, Number(c.horas) || 0);
+  const valorHora = Math.max(0, Number(c.valorHora) || 0);
+  const deslocamento = Math.max(0, Number(c.deslocamento) || 0);
+  const desmontagem = Math.max(0, Number(c.desmontagem) || 0);
+  return Math.round((horas * valorHora + deslocamento + desmontagem) * 100) / 100;
+}
