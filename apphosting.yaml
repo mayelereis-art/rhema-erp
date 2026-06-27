@@ -1,0 +1,25 @@
+# Configuração do Firebase App Hosting para o Next.js.
+# Documentação: https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  minInstances: 0
+  maxInstances: 2
+
+# Variáveis públicas (NEXT_PUBLIC_*) do projeto rhema-erp. Em produção, o Admin
+# SDK (src/lib/firebase-admin.ts) usa as credenciais padrão do ambiente do App
+# Hosting — não precisa de FIREBASE_SERVICE_ACCOUNT_KEY aqui.
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyBFsPo-V93200Lpww5wVjI6nfHkvLjm2dE"
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "rhema-erp.firebaseapp.com"
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "rhema-erp"
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "rhema-erp.firebasestorage.app"
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "752737904072"
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:752737904072:web:bbea4548c83272c6250cfd"
+  - variable: NEXT_PUBLIC_WHATSAPP_NUMERO
+    value: "5511998123344"
