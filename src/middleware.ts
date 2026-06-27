@@ -4,7 +4,17 @@ import { NextResponse, type NextRequest } from "next/server";
 // Por isso ele só checa a presença do cookie de sessão; a verificação criptográfica
 // completa (validade, papel do usuário) acontece no layout do dashboard, que roda
 // em Node.js (ver src/app/(dashboard)/layout.tsx).
+// O matcher do Next.js usa um compilador de rotas limitado (path-to-regexp),
+// que não interpreta corretamente um lookahead com `$` no fim — por isso a
+// exclusão de arquivos estáticos da pasta public (ex.: logo-rhema.png) é
+// verificada aqui dentro, com regex JS de verdade, em vez de no matcher.
+const ARQUIVO_ESTATICO = /\.[a-zA-Z0-9]+$/;
+
 export function middleware(req: NextRequest) {
+  if (ARQUIVO_ESTATICO.test(req.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   const sessionCookie = req.cookies.get("__session");
 
   if (!sessionCookie) {
@@ -17,8 +27,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Protege todas as rotas internas, exceto login, loja pública, api de auth,
-  // assets internos do Next e arquivos estáticos da pasta public (qualquer
-  // caminho com extensão, ex.: logo-rhema.png).
-  matcher: ["/((?!login|loja|api/auth|_next/static|_next/image|favicon.ico|.*\\.[a-zA-Z0-9]+$).*)"],
+  // Protege todas as rotas internas, exceto login, loja pública, api de auth
+  // e assets internos do Next. Arquivos estáticos da pasta public passam pelo
+  // matcher mas são liberados na função acima.
+  matcher: ["/((?!login|loja|api/auth|_next/static|_next/image|favicon.ico).*)"],
 };
