@@ -5,22 +5,32 @@ import type { Cliente } from "@/lib/firestore-schema";
 import type { ContratoComId } from "@/lib/contratos";
 import { atualizarStatusContrato, marcarParcelaPaga } from "@/lib/contratos";
 import type { ResultadoRateio } from "@/lib/rateio";
+import { EMPRESA } from "@/lib/empresa";
 
 const PROXIMO_STATUS: Record<string, { status: string; rotulo: string } | undefined> = {
   ORCAMENTO: { status: "CONFIRMADO", rotulo: "Confirmar contrato" },
   CONFIRMADO: { status: "CONCLUIDO", rotulo: "Marcar como concluído" },
 };
 
+const ROTULO_STATUS: Record<string, string> = {
+  ORCAMENTO: "Orçamento",
+  CONFIRMADO: "Confirmado",
+  CONCLUIDO: "Concluído",
+  CANCELADO: "Cancelado",
+};
+
 export function ContratoDetalheClient({
   contrato,
   cliente,
   nomeProduto,
+  nomeAtendente,
   total,
   rateio,
 }: {
   contrato: ContratoComId;
   cliente: Cliente | null;
   nomeProduto: Record<string, string>;
+  nomeAtendente?: string;
   total: number;
   rateio: ResultadoRateio;
 }) {
@@ -40,6 +50,9 @@ export function ContratoDetalheClient({
   }
 
   const linkWhatsApp = linkWhatsAppDoContrato(cliente?.telefone, contrato.numero, contrato.evento, total);
+  const valorPago = contrato.parcelas.filter((p) => p.pago).reduce((s, p) => s + p.valor, 0);
+  const valorPendente = total - valorPago;
+  const numeroPedido = `${contrato.numero}`.padStart(3, "0");
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
@@ -47,16 +60,35 @@ export function ContratoDetalheClient({
         id="documento-contrato"
         style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: "var(--r)", boxShadow: "var(--shadow)", padding: 28 }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 16,
+            paddingBottom: 16,
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
           <div>
             <div style={{ fontFamily: "var(--font-d)", fontSize: 22, fontWeight: 600 }}>
               Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
             </div>
-            <div style={{ fontSize: 11, color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: 1.5 }}>
-              Contrato de locação #{contrato.numero}
+            <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 4, lineHeight: 1.5 }}>
+              {EMPRESA.razaoSocial} · CNPJ {EMPRESA.cnpj}
+              <br />
+              {EMPRESA.telefone} · {EMPRESA.email}
+              <br />
+              {EMPRESA.endereco}
             </div>
           </div>
-          <span style={{ fontWeight: 700, color: "var(--rose-deep)" }}>{contrato.status}</span>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--ink-soft)", textTransform: "uppercase", letterSpacing: 1.5 }}>
+              Contrato de locação
+            </div>
+            <div style={{ fontFamily: "var(--font-d)", fontSize: 18 }}>#{numeroPedido}</div>
+            <span style={{ fontWeight: 700, color: "var(--rose-deep)" }}>{ROTULO_STATUS[contrato.status] ?? contrato.status}</span>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20, fontSize: 13.5 }}>
@@ -64,20 +96,32 @@ export function ContratoDetalheClient({
             <strong>Cliente:</strong> {cliente?.nome ?? "—"}
           </div>
           <div>
-            <strong>Evento:</strong> {contrato.evento}
+            <strong>Telefone:</strong> {cliente?.telefone ?? "—"}
           </div>
           <div>
-            <strong>Retirada:</strong> {new Date(contrato.inicio).toLocaleDateString("pt-BR")}
+            <strong>Objetivo da locação:</strong> {contrato.evento}
           </div>
           <div>
-            <strong>Devolução:</strong> {new Date(contrato.fim).toLocaleDateString("pt-BR")}
+            <strong>Atendente:</strong> {nomeAtendente ?? "—"}
           </div>
           <div>
-            <strong>Logística:</strong> {contrato.modoLogistica === "ENTREGA" ? `Entrega — ${contrato.endereco}` : "Cliente retira"}
+            <strong>Data do pedido:</strong> {new Date(contrato.criadoEm).toLocaleDateString("pt-BR")}
           </div>
+          <div>
+            <strong>Início / término da locação:</strong> {new Date(contrato.inicio).toLocaleDateString("pt-BR")} —{" "}
+            {new Date(contrato.fim).toLocaleDateString("pt-BR")}
+          </div>
+          <div>
+            <strong>Tipo:</strong> {contrato.modoLogistica === "ENTREGA" ? "Entrega no local" : "Retirar na loja"}
+          </div>
+          {contrato.modoLogistica === "ENTREGA" && (
+            <div>
+              <strong>Endereço de entrega:</strong> {contrato.endereco ?? "—"}
+            </div>
+          )}
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, marginBottom: 20 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, marginBottom: 16 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
               <th style={{ padding: "6px 0" }}>Item</th>
@@ -98,8 +142,21 @@ export function ContratoDetalheClient({
           </tbody>
         </table>
 
-        <div style={{ textAlign: "right", fontFamily: "var(--font-d)", fontSize: 20, marginBottom: 20 }}>
-          Total: R$ {total.toFixed(2)}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+          <div style={{ fontSize: 13, minWidth: 220 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+              <span>Valor total</span>
+              <strong>R$ {total.toFixed(2)}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--sage)" }}>
+              <span>Valor pago</span>
+              <strong>R$ {valorPago.toFixed(2)}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--rose-deep)" }}>
+              <span>Valor pendente</span>
+              <strong>R$ {valorPendente.toFixed(2)}</strong>
+            </div>
+          </div>
         </div>
 
         <div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>

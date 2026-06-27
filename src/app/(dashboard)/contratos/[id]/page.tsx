@@ -3,6 +3,7 @@ import { PageHeader } from "../../page-header";
 import { obterContrato } from "@/lib/contratos";
 import { obterCliente } from "@/lib/clientes";
 import { listarProdutos } from "@/lib/produtos";
+import { listarUsuarios } from "@/lib/usuarios";
 import { calcularRateio } from "@/lib/rateio";
 import { ContratoDetalheClient } from "./contrato-detalhe-client";
 
@@ -13,8 +14,13 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   const contrato = await obterContrato(id);
   if (!contrato) notFound();
 
-  const [cliente, produtos] = await Promise.all([obterCliente(contrato.clienteId), listarProdutos()]);
+  const [cliente, produtos, usuarios] = await Promise.all([
+    obterCliente(contrato.clienteId),
+    listarProdutos(),
+    listarUsuarios(),
+  ]);
   const nomeProduto = Object.fromEntries(produtos.map((p) => [p.id, p.nome]));
+  const nomeAtendente = usuarios.find((u) => u.id === contrato.executoraId)?.nome;
 
   const total = contrato.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
   const rateio = calcularRateio(total, contrato.custos, MAPA_TIPO[contrato.tipoServico]);
@@ -27,6 +33,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           contrato={contrato}
           cliente={cliente}
           nomeProduto={nomeProduto}
+          nomeAtendente={nomeAtendente}
           total={total}
           rateio={rateio}
         />
