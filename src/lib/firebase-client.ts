@@ -3,6 +3,7 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -17,6 +18,7 @@ const jaExistia = getApps().length > 0;
 export const firebaseApp = jaExistia ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseApp);
 export const db = getFirestore(firebaseApp);
+export const storage = getStorage(firebaseApp);
 
 // Apenas para desenvolvimento local com `firebase emulators:start` (ver CLAUDE.md).
 if (!jaExistia && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true") {

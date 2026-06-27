@@ -21,14 +21,14 @@ const ROTULO_STATUS: Record<string, string> = {
 export function ContratoDetalheClient({
   contrato,
   cliente,
-  nomeProduto,
+  infoProduto,
   nomeAtendente,
   total,
   rateio,
 }: {
   contrato: ContratoComId;
   cliente: Cliente | null;
-  nomeProduto: Record<string, string>;
+  infoProduto: Record<string, { nome: string; fotoUrl?: string }>;
   nomeAtendente?: string;
   total: number;
   rateio: ResultadoRateio;
@@ -130,14 +130,29 @@ export function ContratoDetalheClient({
             </tr>
           </thead>
           <tbody>
-            {contrato.itens.map((i) => (
-              <tr key={i.produtoId} style={{ borderBottom: "1px solid var(--line)" }}>
-                <td style={{ padding: "6px 0" }}>{nomeProduto[i.produtoId] ?? i.produtoId}</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>{i.quantidade}</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {i.precoUnitario.toFixed(2)}</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(i.quantidade * i.precoUnitario).toFixed(2)}</td>
-              </tr>
-            ))}
+            {contrato.itens.map((i) => {
+              const info = infoProduto[i.produtoId];
+              return (
+                <tr key={i.produtoId} style={{ borderBottom: "1px solid var(--line)" }}>
+                  <td style={{ padding: "6px 0" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {info?.fotoUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={info.fotoUrl}
+                          alt={info.nome}
+                          style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 6, flexShrink: 0 }}
+                        />
+                      )}
+                      {info?.nome ?? i.produtoId}
+                    </div>
+                  </td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>{i.quantidade}</td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {i.precoUnitario.toFixed(2)}</td>
+                  <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(i.quantidade * i.precoUnitario).toFixed(2)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

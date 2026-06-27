@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "@/lib/firebase-client";
 import { atualizarProduto, criarProduto, excluirProduto, type DadosProduto } from "@/lib/produtos";
 import { calcularLocacoesParaRecuperar, calcularPrecoSugerido, PERCENTUAL_RECUPERACAO_PADRAO } from "@/lib/precificacao";
 import type { Categoria, Fornecedor, Produto } from "@/lib/firestore-schema";
@@ -8,6 +10,7 @@ import type { Categoria, Fornecedor, Produto } from "@/lib/firestore-schema";
 const VAZIO: DadosProduto = {
   nome: "",
   emoji: "📦",
+  fotoUrl: "",
   precoDiaria: 0,
   quantidade: 1,
   destaque: false,
@@ -115,11 +118,17 @@ export function CatalogoClient({
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 42,
-                background: "linear-gradient(135deg,#f7ede2,#f3e3ea)",
+                background: p.fotoUrl ? "var(--cream)" : "linear-gradient(135deg,#f7ede2,#f3e3ea)",
                 position: "relative",
+                overflow: "hidden",
               }}
             >
-              {p.emoji}
+              {p.fotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.fotoUrl} alt={p.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                p.emoji
+              )}
               {p.destaque && (
                 <span
                   style={{
@@ -207,6 +216,7 @@ function ProdutoForm({
       ? {
           nome: inicial.nome,
           emoji: inicial.emoji,
+          fotoUrl: inicial.fotoUrl ?? "",
           precoDiaria: inicial.precoDiaria,
           quantidade: inicial.quantidade,
           destaque: inicial.destaque,
@@ -218,8 +228,26 @@ function ProdutoForm({
       : VAZIO
   );
   const [salvando, setSalvando] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
 
   const precoSugerido = calcularPrecoSugerido(dados.custoAquisicao ?? 0, dados.percentualRecuperacao ?? PERCENTUAL_RECUPERACAO_PADRAO);
+
+  async function handleFoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+    setEnviandoFoto(true);
+    try {
+      const caminho = `produtos/${Date.now()}-${arquivo.name}`;
+      const storageRef = ref(storage, caminho);
+      await uploadBytes(storageRef, arquivo);
+      const url = await getDownloadURL(storageRef);
+      setDados((prev) => ({ ...prev, fotoUrl: url }));
+    } catch {
+      alert("Não foi possível enviar a foto. Tente novamente.");
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -228,6 +256,7 @@ function ProdutoForm({
       ...dados,
       categoriaId: dados.categoriaId || undefined,
       fornecedorId: dados.fornecedorId || undefined,
+      fotoUrl: dados.fotoUrl || undefined,
     };
     if (inicial) {
       await atualizarProduto(inicial.id, payload);
@@ -262,8 +291,16 @@ function ProdutoForm({
       <Campo label="Nome">
         <input required value={dados.nome} onChange={(e) => setDados({ ...dados, nome: e.target.value })} style={campoStyle} />
       </Campo>
-      <Campo label="Emoji">
+      <Campo label="Emoji (se não tiver foto)">
         <input value={dados.emoji} onChange={(e) => setDados({ ...dados, emoji: e.target.value })} style={campoStyle} />
+      </Campo>
+      <Campo label="Foto do produto">
+        <input type="file" accept="image/*" onChange={handleFoto} style={{ ...campoStyle, padding: "5px 8px" }} />
+        {enviandoFoto && <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 4 }}>Enviando...</div>}
+        {dados.fotoUrl && !enviandoFoto && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={dados.fotoUrl} alt="Pré-visualização" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 8, marginTop: 6 }} />
+        )}
       </Campo>
       <Campo label="Custo de aquisição (R$)">
         <input

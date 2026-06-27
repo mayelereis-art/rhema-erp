@@ -28,3 +28,6 @@ const adminApp = criarApp();
 
 export const adminAuth = getAuth(adminApp);
 export const adminDb = getFirestore(adminApp);
+// Vários formulários enviam campos opcionais como `undefined` (ex.: categoriaId,
+// fotoUrl) quando vazios — sem isso, o Admin SDK rejeita o write inteiro.
+adminDb.settings({ ignoreUndefinedProperties: true });

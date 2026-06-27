@@ -33,6 +33,7 @@ export async function listarFornecedores(): Promise<Fornecedor[]> {
 export interface DadosProduto {
   nome: string;
   emoji: string;
+  fotoUrl?: string;
   precoDiaria: number;
   quantidade: number;
   destaque: boolean;

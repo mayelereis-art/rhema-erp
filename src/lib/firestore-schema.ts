@@ -45,6 +45,7 @@ export interface Produto {
   id: string;
   nome: string;
   emoji: string;
+  fotoUrl?: string;
   precoDiaria: number;
   quantidade: number;
   destaque: boolean;
