@@ -49,12 +49,25 @@ export function LojaClient({ produtos, categorias }: { produtos: Produto[]; cate
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--cream)" }}>
-      <header style={{ padding: "26px 34px", borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
-        <div style={{ fontFamily: "var(--font-d)", fontSize: 26, fontWeight: 600 }}>
-          Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
-        </div>
-        <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
-          Decoração de eventos para locação em Guararema. Escolha os itens e peça seu orçamento.
+      <header
+        style={{
+          padding: "26px 34px",
+          borderBottom: "1px solid var(--line)",
+          background: "var(--paper)",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-rhema.png" alt="Rhema Decorações" style={{ width: 54, height: 54, borderRadius: "50%", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontFamily: "var(--font-d)", fontSize: 26, fontWeight: 600 }}>
+            Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 4 }}>
+            Decoração de eventos para locação em Guararema. Escolha os itens e peça seu orçamento.
+          </div>
         </div>
       </header>
 
