@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { atualizarProduto, criarProduto, excluirProduto, type DadosProduto } from "@/lib/produtos";
+import { calcularLocacoesParaRecuperar, calcularPrecoSugerido, PERCENTUAL_RECUPERACAO_PADRAO } from "@/lib/precificacao";
 import type { Categoria, Fornecedor, Produto } from "@/lib/firestore-schema";
 
 const VAZIO: DadosProduto = {
@@ -12,6 +13,8 @@ const VAZIO: DadosProduto = {
   destaque: false,
   categoriaId: "",
   fornecedorId: "",
+  custoAquisicao: 0,
+  percentualRecuperacao: PERCENTUAL_RECUPERACAO_PADRAO,
 };
 
 export function CatalogoClient({
@@ -144,6 +147,18 @@ export function CatalogoClient({
                 R$ {p.precoDiaria.toFixed(2)} <small style={{ fontSize: 11, color: "var(--ink-soft)" }}>/diária</small>
               </div>
               <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>Estoque: {p.quantidade}</div>
+              {!!p.custoAquisicao && (() => {
+                const sugerido = calcularPrecoSugerido(p.custoAquisicao, p.percentualRecuperacao ?? PERCENTUAL_RECUPERACAO_PADRAO);
+                const locacoes = calcularLocacoesParaRecuperar(p.custoAquisicao, p.precoDiaria);
+                const abaixo = p.precoDiaria < sugerido;
+                return (
+                  <div style={{ fontSize: 11.5, marginTop: 4, color: abaixo ? "var(--rose-deep)" : "var(--sage)" }}>
+                    {abaixo
+                      ? `⚠ sugerido R$ ${sugerido.toFixed(2)} (custou R$ ${p.custoAquisicao.toFixed(2)})`
+                      : `recupera em ${locacoes} locação(ões)`}
+                  </div>
+                );
+              })()}
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button
                   className="btn btn-g btn-sm"
@@ -197,10 +212,14 @@ function ProdutoForm({
           destaque: inicial.destaque,
           categoriaId: inicial.categoriaId ?? "",
           fornecedorId: inicial.fornecedorId ?? "",
+          custoAquisicao: inicial.custoAquisicao ?? 0,
+          percentualRecuperacao: inicial.percentualRecuperacao ?? PERCENTUAL_RECUPERACAO_PADRAO,
         }
       : VAZIO
   );
   const [salvando, setSalvando] = useState(false);
+
+  const precoSugerido = calcularPrecoSugerido(dados.custoAquisicao ?? 0, dados.percentualRecuperacao ?? PERCENTUAL_RECUPERACAO_PADRAO);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -246,6 +265,25 @@ function ProdutoForm({
       <Campo label="Emoji">
         <input value={dados.emoji} onChange={(e) => setDados({ ...dados, emoji: e.target.value })} style={campoStyle} />
       </Campo>
+      <Campo label="Custo de aquisição (R$)">
+        <input
+          type="number"
+          step="0.01"
+          value={dados.custoAquisicao}
+          onChange={(e) => setDados({ ...dados, custoAquisicao: Number(e.target.value) })}
+          style={campoStyle}
+          placeholder="quanto custou comprar"
+        />
+      </Campo>
+      <Campo label="% recuperado por locação">
+        <input
+          type="number"
+          step="1"
+          value={dados.percentualRecuperacao}
+          onChange={(e) => setDados({ ...dados, percentualRecuperacao: Number(e.target.value) })}
+          style={campoStyle}
+        />
+      </Campo>
       <Campo label="Preço diária (R$)">
         <input
           type="number"
@@ -255,6 +293,19 @@ function ProdutoForm({
           onChange={(e) => setDados({ ...dados, precoDiaria: Number(e.target.value) })}
           style={campoStyle}
         />
+        {!!dados.custoAquisicao && (
+          <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 4, display: "flex", gap: 8, alignItems: "center" }}>
+            sugerido: R$ {precoSugerido.toFixed(2)}
+            <button
+              type="button"
+              className="btn btn-x"
+              style={{ padding: "2px 8px", fontSize: 11 }}
+              onClick={() => setDados({ ...dados, precoDiaria: precoSugerido })}
+            >
+              usar
+            </button>
+          </div>
+        )}
       </Campo>
       <Campo label="Estoque">
         <input

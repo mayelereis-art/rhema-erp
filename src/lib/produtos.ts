@@ -38,6 +38,8 @@ export interface DadosProduto {
   destaque: boolean;
   categoriaId?: string;
   fornecedorId?: string;
+  custoAquisicao?: number;
+  percentualRecuperacao?: number;
 }
 
 export async function criarProduto(dados: DadosProduto) {

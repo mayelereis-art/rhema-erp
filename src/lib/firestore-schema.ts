@@ -50,6 +50,13 @@ export interface Produto {
   destaque: boolean;
   categoriaId?: string;
   fornecedorId?: string;
+  // Quanto custou comprar a peça (preço unitário pago ao fornecedor) — base
+  // para sugerir o preço da diária (ver custoSugerido em src/lib/precificacao.ts).
+  custoAquisicao?: number;
+  // % do custo recuperado por locação. Itens de alto desgaste (tecido, balão)
+  // ficam por volta de 20%; itens duráveis (estrutura metálica, vaso) por volta
+  // de 10%. Padrão: 15%.
+  percentualRecuperacao?: number;
   criadoEm: Timestamp;
 }
 
