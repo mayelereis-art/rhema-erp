@@ -11,12 +11,8 @@ import { NextResponse, type NextRequest } from "next/server";
 const ARQUIVO_ESTATICO = /\.[a-zA-Z0-9]+$/;
 
 export function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  res.headers.set("x-debug-pathname", req.nextUrl.pathname);
-  res.headers.set("x-debug-estatico", String(ARQUIVO_ESTATICO.test(req.nextUrl.pathname)));
-
   if (ARQUIVO_ESTATICO.test(req.nextUrl.pathname)) {
-    return res;
+    return NextResponse.next();
   }
 
   const sessionCookie = req.cookies.get("__session");
@@ -27,7 +23,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return res;
+  return NextResponse.next();
 }
 
 export const config = {
