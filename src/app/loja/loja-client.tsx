@@ -177,7 +177,7 @@ function Grade({
           >
             {p.fotoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.fotoUrl} alt={p.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={p.fotoUrl} alt={p.nome} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             ) : (
               p.emoji
             )}
