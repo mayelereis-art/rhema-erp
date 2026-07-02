@@ -7,6 +7,19 @@ import { atualizarProduto, criarProduto, excluirProduto, type DadosProduto } fro
 import { calcularLocacoesParaRecuperar, calcularPrecoSugerido, PERCENTUAL_RECUPERACAO_PADRAO } from "@/lib/precificacao";
 import type { Categoria, Fornecedor, Produto } from "@/lib/firestore-schema";
 
+// Fotos de celular chegam a 5–10 MB; redimensionar antes do upload deixa o
+// envio e o carregamento das páginas muito mais rápidos.
+async function comprimirImagem(arquivo: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(arquivo);
+  const maxLado = 1200;
+  const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * escala);
+  canvas.height = Math.round(bitmap.height * escala);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ?? arquivo), "image/jpeg", 0.82));
+}
+
 const VAZIO: DadosProduto = {
   nome: "",
   emoji: "📦",
@@ -87,16 +100,35 @@ export function CatalogoClient({
       </div>
 
       {mostrarForm && (
-        <ProdutoForm
-          inicial={editando}
-          categorias={categorias}
-          fornecedores={fornecedores}
-          onFechar={() => setMostrarForm(false)}
-          onEditar={(p) => {
-            setEditando(p);
-            setMostrarForm(true);
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(42,36,56,.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            zIndex: 50,
           }}
-        />
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMostrarForm(false);
+          }}
+        >
+          <div style={{ maxWidth: 860, width: "100%", maxHeight: "90vh", overflowY: "auto", borderRadius: "var(--r)" }}>
+            <ProdutoForm
+              key={editando?.id ?? "novo"}
+              inicial={editando}
+              categorias={categorias}
+              fornecedores={fornecedores}
+              onFechar={() => setMostrarForm(false)}
+              onEditar={(p) => {
+                setEditando(p);
+                setMostrarForm(true);
+              }}
+            />
+          </div>
+        </div>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
@@ -242,9 +274,10 @@ function ProdutoForm({
     if (!arquivo) return;
     setEnviandoFoto(true);
     try {
-      const caminho = `produtos/${Date.now()}-${arquivo.name}`;
+      const imagem = await comprimirImagem(arquivo);
+      const caminho = `produtos/${Date.now()}.jpg`;
       const storageRef = ref(storage, caminho);
-      await uploadBytes(storageRef, arquivo);
+      await uploadBytes(storageRef, imagem, { contentType: "image/jpeg" });
       const url = await getDownloadURL(storageRef);
       setDados((prev) => ({ ...prev, fotoUrl: url }));
     } catch {
