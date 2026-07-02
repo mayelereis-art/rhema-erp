@@ -403,8 +403,8 @@ function ProdutoForm({
       </label>
 
       <div style={{ display: "flex", gap: 10 }}>
-        <button type="submit" disabled={salvando} className="btn btn-p">
-          {salvando ? "Salvando..." : "Salvar"}
+        <button type="submit" disabled={salvando || enviandoFoto} className="btn btn-p">
+          {enviandoFoto ? "Enviando foto..." : salvando ? "Salvando..." : "Salvar"}
         </button>
         <button type="button" className="btn btn-g" onClick={onFechar}>
           Cancelar
