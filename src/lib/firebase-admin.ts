@@ -30,4 +30,15 @@ export const adminAuth = getAuth(adminApp);
 export const adminDb = getFirestore(adminApp);
 // Vários formulários enviam campos opcionais como `undefined` (ex.: categoriaId,
 // fotoUrl) quando vazios — sem isso, o Admin SDK rejeita o write inteiro.
-adminDb.settings({ ignoreUndefinedProperties: true });
+// settings() só pode ser chamado uma vez por instância, mas este módulo pode
+// ser avaliado mais de uma vez (bundles distintos compartilham o mesmo app) —
+// o guard em globalThis evita o crash "Firestore has already been initialized".
+const marcador = globalThis as { __rhemaFirestoreConfigurado?: boolean };
+if (!marcador.__rhemaFirestoreConfigurado) {
+  try {
+    adminDb.settings({ ignoreUndefinedProperties: true });
+  } catch {
+    // instância já em uso — settings anteriores permanecem válidos
+  }
+  marcador.__rhemaFirestoreConfigurado = true;
+}
