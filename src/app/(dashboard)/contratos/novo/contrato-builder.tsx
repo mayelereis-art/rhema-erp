@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Cliente, ItemContrato, ModoLogistica, Produto, TipoServico, Usuario } from "@/lib/firestore-schema";
 import { criarCliente } from "@/lib/clientes";
 import { criarContrato, validarDisponibilidadeContrato, type ErroDisponibilidade } from "@/lib/contratos";
-import { calcularRateio, gerarParcelas } from "@/lib/rateio";
+import { calcularRateio, gerarParcelasComSinal } from "@/lib/rateio";
 import { CalculadoraCustoPresencial } from "../../calculadora-custo-presencial";
 
 function hoje() {
@@ -35,6 +35,8 @@ export function ContratoBuilder({
   const [fim, setFim] = useState(hoje());
   const [tipoServico, setTipoServico] = useState<TipoServico>("PRESENCIAL");
   const [custos, setCustos] = useState(0);
+  const [desconto, setDesconto] = useState(0);
+  const [sinalPago, setSinalPago] = useState(0);
   const [executoraId, setExecutoraId] = useState("");
   const [modoLogistica, setModoLogistica] = useState<ModoLogistica>("RETIRADA");
   const [endereco, setEndereco] = useState("");
@@ -46,11 +48,11 @@ export function ContratoBuilder({
 
   const total = useMemo(() => itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), [itens]);
   const valorMontagem = tipoServico === "PRESENCIAL" ? custos : 0;
-  const valorFaturado = total + valorMontagem;
-  const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico]), [total, custos, tipoServico]);
+  const valorFaturado = Math.max(0, total + valorMontagem - desconto);
+  const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico], desconto), [total, custos, tipoServico, desconto]);
   const parcelas = useMemo(
-    () => (valorFaturado > 0 ? gerarParcelas(valorFaturado, inicio, fim) : []),
-    [valorFaturado, inicio, fim]
+    () => (valorFaturado > 0 ? gerarParcelasComSinal(valorFaturado, inicio, fim, sinalPago) : []),
+    [valorFaturado, inicio, fim, sinalPago]
   );
 
   function nomeProduto(id: string) {
@@ -111,6 +113,8 @@ export function ContratoBuilder({
         fim,
         tipoServico,
         custos,
+        desconto,
+        sinalPago,
         executoraId: executoraId || undefined,
         modoLogistica,
         endereco: modoLogistica === "ENTREGA" ? endereco : undefined,
@@ -244,6 +248,12 @@ export function ContratoBuilder({
             <Campo label="Custos do serviço (R$)">
               <input type="number" step="0.01" value={custos} onChange={(e) => setCustos(Number(e.target.value))} style={campoStyle} />
             </Campo>
+            <Campo label="Desconto (R$)">
+              <input type="number" step="0.01" min={0} value={desconto} onChange={(e) => setDesconto(Number(e.target.value))} style={campoStyle} />
+            </Campo>
+            <Campo label="Sinal já pago (R$)">
+              <input type="number" step="0.01" min={0} value={sinalPago} onChange={(e) => setSinalPago(Number(e.target.value))} style={campoStyle} />
+            </Campo>
             <Campo label="Quem executa">
               <select value={executoraId} onChange={(e) => setExecutoraId(e.target.value)} style={campoStyle}>
                 <option value="">—</option>
@@ -294,6 +304,12 @@ export function ContratoBuilder({
               <strong>R$ {valorMontagem.toFixed(2)}</strong>
             </div>
           )}
+          {desconto > 0 && (
+            <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--rose-deep)" }}>
+              <span>Desconto</span>
+              <strong>− R$ {desconto.toFixed(2)}</strong>
+            </div>
+          )}
           <div style={{ fontFamily: "var(--font-d)", fontSize: 24, marginTop: 6 }}>R$ {valorFaturado.toFixed(2)}</div>
           <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 2 }}>Total cobrado do cliente</div>
         </Secao>
@@ -315,7 +331,7 @@ export function ContratoBuilder({
         {parcelas.length > 0 && (
           <Secao titulo="Parcelas">
             {parcelas.map((p) => (
-              <div key={p.rotulo} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13 }}>
+              <div key={p.rotulo} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13, color: p.pago ? "var(--sage)" : undefined }}>
                 <span>{p.rotulo}</span>
                 <strong>R$ {p.valor.toFixed(2)}</strong>
               </div>

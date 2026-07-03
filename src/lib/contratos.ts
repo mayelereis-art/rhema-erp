@@ -5,7 +5,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
 import { COLECOES, type Contrato, type ItemContrato, type ModoLogistica, type StatusContrato, type TipoServico } from "./firestore-schema";
 import { calcularLivre, type ContratoPeriodo } from "./disponibilidade";
-import { gerarParcelas } from "./rateio";
+import { gerarParcelasComSinal } from "./rateio";
 
 export interface ContratoComId extends Omit<Contrato, "inicio" | "fim" | "criadoEm" | "parcelas"> {
   inicio: string; // ISO
@@ -95,6 +95,7 @@ export interface DadosContrato {
   tipoServico: TipoServico;
   custos: number;
   desconto?: number;
+  sinalPago?: number; // valor já recebido do cliente ao fechar o contrato
   executoraId?: string;
   modoLogistica: ModoLogistica;
   endereco?: string;
@@ -144,7 +145,7 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
   // de montagem cobrado, então as parcelas cobrem só os itens.
   const desconto = dados.desconto ?? 0;
   const valorFaturado = Math.max(0, total + (dados.tipoServico === "PRESENCIAL" ? dados.custos : 0) - desconto);
-  const parcelas = gerarParcelas(valorFaturado, dados.inicio, dados.fim);
+  const parcelas = gerarParcelasComSinal(valorFaturado, dados.inicio, dados.fim, dados.sinalPago ?? 0);
 
   const ref = await adminDb.collection(COLECOES.contratos).add({
     numero,

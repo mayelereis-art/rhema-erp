@@ -100,3 +100,21 @@ export function gerarParcelas(total: number, dataInicio: string, dataFim: string
     { rotulo: "Saldo (cartão)", vencimento: dataFim, valor: saldo, pago: false },
   ];
 }
+
+/**
+ * Gera as parcelas quando o cliente já pagou um sinal ao fechar o contrato:
+ * a primeira parcela sai com o valor efetivamente recebido e marcada como paga,
+ * e o saldo restante vence na devolução. Sem sinal informado, cai na regra
+ * padrão de 50%/50%.
+ */
+export function gerarParcelasComSinal(total: number, dataInicio: string, dataFim: string, sinalPago: number) {
+  const t = Math.round((Number(total) || 0) * 100) / 100;
+  const s = Math.round((Number(sinalPago) || 0) * 100) / 100;
+  if (s <= 0) return gerarParcelas(t, dataInicio, dataFim);
+
+  const sinal = Math.min(s, t);
+  const saldo = Math.round((t - sinal) * 100) / 100;
+  const parcelas = [{ rotulo: "Sinal (pago)", vencimento: dataInicio, valor: sinal, pago: true }];
+  if (saldo > 0) parcelas.push({ rotulo: "Saldo (cartão)", vencimento: dataFim, valor: saldo, pago: false });
+  return parcelas;
+}
