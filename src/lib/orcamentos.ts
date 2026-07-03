@@ -16,6 +16,7 @@ export interface OrcamentoComId {
   status: StatusOrcamento;
   tipoServico: TipoServico;
   custos: number;
+  desconto: number;
   executoraId?: string;
   modoLogistica: ModoLogistica;
   endereco?: string;
@@ -35,6 +36,7 @@ function serializar(id: string, d: FirebaseFirestore.DocumentData): OrcamentoCom
     status: d.status,
     tipoServico: d.tipoServico,
     custos: d.custos,
+    desconto: d.desconto ?? 0,
     executoraId: d.executoraId,
     modoLogistica: d.modoLogistica,
     endereco: d.endereco,
@@ -79,6 +81,7 @@ export interface DadosOrcamento {
   fim: string;
   tipoServico: TipoServico;
   custos: number;
+  desconto?: number;
   executoraId?: string;
   modoLogistica: ModoLogistica;
   endereco?: string;
@@ -102,6 +105,7 @@ export async function criarOrcamento(dados: DadosOrcamento): Promise<{ id: strin
     status: "PENDENTE",
     tipoServico: dados.tipoServico,
     custos: dados.custos,
+    desconto: dados.desconto ?? 0,
     executoraId: dados.executoraId ?? null,
     modoLogistica: dados.modoLogistica,
     endereco: dados.endereco ?? null,
@@ -112,6 +116,34 @@ export async function criarOrcamento(dados: DadosOrcamento): Promise<{ id: strin
 
   revalidatePath("/orcamentos");
   return { id: ref.id };
+}
+
+/** Edita um orçamento ainda PENDENTE (convertidos/cancelados são histórico). */
+export async function atualizarOrcamento(
+  id: string,
+  dados: DadosOrcamento
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  const atual = await obterOrcamento(id);
+  if (!atual) return { ok: false, erro: "Orçamento não encontrado." };
+  if (atual.status !== "PENDENTE") return { ok: false, erro: "Só é possível editar orçamentos pendentes." };
+
+  await adminDb.collection(COLECOES.orcamentos).doc(id).update({
+    clienteId: dados.clienteId,
+    evento: dados.evento,
+    inicio: Timestamp.fromDate(new Date(dados.inicio)),
+    fim: Timestamp.fromDate(new Date(dados.fim)),
+    tipoServico: dados.tipoServico,
+    custos: dados.custos,
+    desconto: dados.desconto ?? 0,
+    executoraId: dados.executoraId ?? null,
+    modoLogistica: dados.modoLogistica,
+    endereco: dados.endereco ?? null,
+    itens: dados.itens,
+  });
+
+  revalidatePath("/orcamentos");
+  revalidatePath(`/orcamentos/${id}`);
+  return { ok: true };
 }
 
 export async function cancelarOrcamento(id: string) {
@@ -139,6 +171,7 @@ export async function converterEmContrato(
     fim: orcamento.fim,
     tipoServico: orcamento.tipoServico,
     custos: orcamento.custos,
+    desconto: orcamento.desconto,
     executoraId: orcamento.executoraId,
     modoLogistica: orcamento.modoLogistica,
     endereco: orcamento.endereco,

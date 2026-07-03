@@ -33,7 +33,8 @@ export function OrcamentoDetalheClient({
   const router = useRouter();
   const [pendente, iniciar] = useTransition();
   const valorMontagem = orcamento.tipoServico === "PRESENCIAL" ? orcamento.custos : 0;
-  const valorTotalOrcamento = total + valorMontagem;
+  const desconto = orcamento.desconto ?? 0;
+  const valorTotalOrcamento = Math.max(0, total + valorMontagem - desconto);
 
   function cancelar() {
     if (!confirm("Cancelar este orçamento?")) return;
@@ -181,6 +182,12 @@ export function OrcamentoDetalheClient({
                 <strong>R$ {valorMontagem.toFixed(2)}</strong>
               </div>
             )}
+            {desconto > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--rose-deep)" }}>
+                <span>Desconto</span>
+                <strong>− R$ {desconto.toFixed(2)}</strong>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderTop: "1px solid var(--line)", marginTop: 4, fontFamily: "var(--font-d)", fontSize: 17 }}>
               <span>Total</span>
               <strong>R$ {valorTotalOrcamento.toFixed(2)}</strong>
@@ -202,6 +209,9 @@ export function OrcamentoDetalheClient({
             )}
             {orcamento.status === "PENDENTE" && (
               <>
+                <button className="btn btn-g" disabled={pendente} onClick={() => router.push(`/orcamentos/${orcamento.id}/editar`)}>
+                  Editar orçamento
+                </button>
                 <button className="btn btn-p" disabled={pendente} onClick={converter}>
                   {pendente ? "Convertendo..." : "Converter em contrato"}
                 </button>

@@ -105,6 +105,7 @@ export interface Contrato {
   status: StatusContrato;
   tipoServico: TipoServico;
   custos: number; // saem antes do rateio
+  desconto?: number; // abatido do total cobrado do cliente (R$)
   executoraId?: string;
 
   modoLogistica: ModoLogistica;
@@ -131,6 +132,7 @@ export interface Orcamento {
   status: StatusOrcamento;
   tipoServico: TipoServico;
   custos: number;
+  desconto?: number; // abatido do total cobrado do cliente (R$)
   executoraId?: string;
   modoLogistica: ModoLogistica;
   endereco?: string;

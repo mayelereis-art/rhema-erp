@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Cliente, ItemContrato, ModoLogistica, Produto, TipoServico, Usuario } from "@/lib/firestore-schema";
 import { criarCliente } from "@/lib/clientes";
-import { criarOrcamento } from "@/lib/orcamentos";
+import { atualizarOrcamento, criarOrcamento, type OrcamentoComId } from "@/lib/orcamentos";
 import { calcularRateio, gerarParcelas } from "@/lib/rateio";
 import { CalculadoraCustoPresencial } from "../../calculadora-custo-presencial";
 
@@ -21,31 +21,34 @@ export function OrcamentoBuilder({
   clientes: clientesIniciais,
   produtos,
   usuarios,
+  inicial,
 }: {
   clientes: Cliente[];
   produtos: Produto[];
   usuarios: Usuario[];
+  inicial?: OrcamentoComId;
 }) {
   const router = useRouter();
   const [clientes, setClientes] = useState(clientesIniciais);
-  const [clienteId, setClienteId] = useState("");
+  const [clienteId, setClienteId] = useState(inicial?.clienteId ?? "");
   const [novoClienteNome, setNovoClienteNome] = useState("");
-  const [evento, setEvento] = useState("");
-  const [inicio, setInicio] = useState(hoje());
-  const [fim, setFim] = useState(hoje());
-  const [tipoServico, setTipoServico] = useState<TipoServico>("PRESENCIAL");
-  const [custos, setCustos] = useState(0);
-  const [executoraId, setExecutoraId] = useState("");
-  const [modoLogistica, setModoLogistica] = useState<ModoLogistica>("RETIRADA");
-  const [endereco, setEndereco] = useState("");
-  const [itens, setItens] = useState<ItemContrato[]>([]);
+  const [evento, setEvento] = useState(inicial?.evento ?? "");
+  const [inicio, setInicio] = useState(inicial ? inicial.inicio.slice(0, 10) : hoje());
+  const [fim, setFim] = useState(inicial ? inicial.fim.slice(0, 10) : hoje());
+  const [tipoServico, setTipoServico] = useState<TipoServico>(inicial?.tipoServico ?? "PRESENCIAL");
+  const [custos, setCustos] = useState(inicial?.custos ?? 0);
+  const [desconto, setDesconto] = useState(inicial?.desconto ?? 0);
+  const [executoraId, setExecutoraId] = useState(inicial?.executoraId ?? "");
+  const [modoLogistica, setModoLogistica] = useState<ModoLogistica>(inicial?.modoLogistica ?? "RETIRADA");
+  const [endereco, setEndereco] = useState(inicial?.endereco ?? "");
+  const [itens, setItens] = useState<ItemContrato[]>(inicial?.itens ?? []);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [quantidadeSelecionada, setQuantidadeSelecionada] = useState(1);
   const [pendente, iniciar] = useTransition();
 
   const total = useMemo(() => itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), [itens]);
   const valorMontagem = tipoServico === "PRESENCIAL" ? custos : 0;
-  const valorFaturado = total + valorMontagem;
+  const valorFaturado = Math.max(0, total + valorMontagem - desconto);
   const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico]), [total, custos, tipoServico]);
   const parcelas = useMemo(
     () => (valorFaturado > 0 ? gerarParcelas(valorFaturado, inicio, fim) : []),
@@ -96,19 +99,30 @@ export function OrcamentoBuilder({
     }
 
     iniciar(async () => {
-      const { id } = await criarOrcamento({
+      const dados = {
         clienteId,
         evento,
         inicio,
         fim,
         tipoServico,
         custos,
+        desconto,
         executoraId: executoraId || undefined,
         modoLogistica,
         endereco: modoLogistica === "ENTREGA" ? endereco : undefined,
         itens,
-      });
-      router.push(`/orcamentos/${id}`);
+      };
+      if (inicial) {
+        const resultado = await atualizarOrcamento(inicial.id, dados);
+        if (!resultado.ok) {
+          alert(resultado.erro);
+          return;
+        }
+        router.push(`/orcamentos/${inicial.id}`);
+      } else {
+        const { id } = await criarOrcamento(dados);
+        router.push(`/orcamentos/${id}`);
+      }
     });
   }
 
@@ -225,6 +239,9 @@ export function OrcamentoBuilder({
             <Campo label="Custos do serviço (R$)">
               <input type="number" step="0.01" value={custos} onChange={(e) => setCustos(Number(e.target.value))} style={campoStyle} />
             </Campo>
+            <Campo label="Desconto (R$)">
+              <input type="number" step="0.01" min={0} value={desconto} onChange={(e) => setDesconto(Number(e.target.value))} style={campoStyle} />
+            </Campo>
             <Campo label="Quem executa">
               <select value={executoraId} onChange={(e) => setExecutoraId(e.target.value)} style={campoStyle}>
                 <option value="">—</option>
@@ -258,7 +275,7 @@ export function OrcamentoBuilder({
 
         <div style={{ display: "flex", gap: 10 }}>
           <button className="btn btn-p" disabled={pendente} onClick={handleSalvar}>
-            {pendente ? "Salvando..." : "Salvar orçamento"}
+            {pendente ? "Salvando..." : inicial ? "Salvar alterações" : "Salvar orçamento"}
           </button>
         </div>
       </div>
@@ -273,6 +290,12 @@ export function OrcamentoBuilder({
             <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
               <span>Valor da montagem</span>
               <strong>R$ {valorMontagem.toFixed(2)}</strong>
+            </div>
+          )}
+          {desconto > 0 && (
+            <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--rose-deep)" }}>
+              <span>Desconto</span>
+              <strong>− R$ {desconto.toFixed(2)}</strong>
             </div>
           )}
           <div style={{ fontFamily: "var(--font-d)", fontSize: 24, marginTop: 6 }}>R$ {valorFaturado.toFixed(2)}</div>

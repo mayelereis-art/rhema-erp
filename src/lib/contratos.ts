@@ -25,6 +25,7 @@ function serializar(id: string, d: FirebaseFirestore.DocumentData): ContratoComI
     status: d.status,
     tipoServico: d.tipoServico,
     custos: d.custos,
+    desconto: d.desconto ?? 0,
     executoraId: d.executoraId,
     modoLogistica: d.modoLogistica,
     endereco: d.endereco,
@@ -93,6 +94,7 @@ export interface DadosContrato {
   fim: string;
   tipoServico: TipoServico;
   custos: number;
+  desconto?: number;
   executoraId?: string;
   modoLogistica: ModoLogistica;
   endereco?: string;
@@ -140,7 +142,8 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
   // Na modalidade presencial, o valor de montagem (custos) é cobrado do cliente
   // junto da locação — ver Cláusula 4 do contrato. No Pegue&Monte não há serviço
   // de montagem cobrado, então as parcelas cobrem só os itens.
-  const valorFaturado = total + (dados.tipoServico === "PRESENCIAL" ? dados.custos : 0);
+  const desconto = dados.desconto ?? 0;
+  const valorFaturado = Math.max(0, total + (dados.tipoServico === "PRESENCIAL" ? dados.custos : 0) - desconto);
   const parcelas = gerarParcelas(valorFaturado, dados.inicio, dados.fim);
 
   const ref = await adminDb.collection(COLECOES.contratos).add({
@@ -152,6 +155,7 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
     status: "CONFIRMADO" as StatusContrato,
     tipoServico: dados.tipoServico,
     custos: dados.custos,
+    desconto,
     executoraId: dados.executoraId ?? null,
     modoLogistica: dados.modoLogistica,
     endereco: dados.endereco ?? null,

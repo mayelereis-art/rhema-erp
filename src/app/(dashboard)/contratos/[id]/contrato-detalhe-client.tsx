@@ -49,7 +49,8 @@ export function ContratoDetalheClient({
   }
 
   const valorMontagem = contrato.tipoServico === "PRESENCIAL" ? contrato.custos : 0;
-  const valorTotalContrato = total + valorMontagem;
+  const desconto = contrato.desconto ?? 0;
+  const valorTotalContrato = Math.max(0, total + valorMontagem - desconto);
   const linkWhatsApp = linkWhatsAppDoContrato(cliente?.telefone, contrato.numero, contrato.evento, valorTotalContrato);
   const valorTotalParcelas = contrato.parcelas.reduce((s, p) => s + p.valor, 0);
   const valorPago = contrato.parcelas.filter((p) => p.pago).reduce((s, p) => s + p.valor, 0);
@@ -209,6 +210,12 @@ export function ContratoDetalheClient({
               <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
                 <span>Valor do serviço de montagem</span>
                 <strong>R$ {valorMontagem.toFixed(2)}</strong>
+              </div>
+            )}
+            {desconto > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", color: "var(--rose-deep)" }}>
+                <span>Desconto</span>
+                <strong>− R$ {desconto.toFixed(2)}</strong>
               </div>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderTop: "1px solid var(--line)", marginTop: 4 }}>
