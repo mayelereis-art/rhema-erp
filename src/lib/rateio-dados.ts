@@ -23,7 +23,7 @@ export async function listarRateioContratos(nomeCliente: Record<string, string>)
   const contratos = await listarContratosFechados();
   return contratos.map((c) => {
     const total = c.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
-    const resultado = calcularRateio(total, c.custos, MAPA_TIPO[c.tipoServico]);
+    const resultado = calcularRateio(total, c.custos, MAPA_TIPO[c.tipoServico], c.desconto);
     return {
       contratoId: c.id,
       numero: c.numero,

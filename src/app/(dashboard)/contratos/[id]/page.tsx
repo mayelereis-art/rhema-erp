@@ -25,7 +25,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   const nomeAtendente = usuarios.find((u) => u.id === contrato.executoraId)?.nome;
 
   const total = contrato.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
-  const rateio = calcularRateio(total, contrato.custos, MAPA_TIPO[contrato.tipoServico]);
+  const rateio = calcularRateio(total, contrato.custos, MAPA_TIPO[contrato.tipoServico], contrato.desconto);
 
   return (
     <>

@@ -49,7 +49,7 @@ export function OrcamentoBuilder({
   const total = useMemo(() => itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), [itens]);
   const valorMontagem = tipoServico === "PRESENCIAL" ? custos : 0;
   const valorFaturado = Math.max(0, total + valorMontagem - desconto);
-  const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico]), [total, custos, tipoServico]);
+  const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico], desconto), [total, custos, tipoServico, desconto]);
   const parcelas = useMemo(
     () => (valorFaturado > 0 ? gerarParcelas(valorFaturado, inicio, fim) : []),
     [valorFaturado, inicio, fim]

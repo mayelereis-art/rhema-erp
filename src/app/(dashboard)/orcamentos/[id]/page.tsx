@@ -25,7 +25,7 @@ export default async function OrcamentoDetalhePage({ params }: { params: Promise
   const nomeAtendente = usuarios.find((u) => u.id === orcamento.executoraId)?.nome;
 
   const total = orcamento.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
-  const rateio = calcularRateio(total, orcamento.custos, MAPA_TIPO[orcamento.tipoServico]);
+  const rateio = calcularRateio(total, orcamento.custos, MAPA_TIPO[orcamento.tipoServico], orcamento.desconto);
 
   return (
     <>

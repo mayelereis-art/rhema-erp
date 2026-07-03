@@ -24,6 +24,17 @@ describe("calcularRateio — Modelo C", () => {
     expect(porDestino.Caixa).toBe(300);
   });
 
+  it("desconto sai do valor antes da divisão do lucro", () => {
+    // contrato de 1000, custos 200, desconto 100 => lucro 700
+    const r = calcularRateio(1000, 200, "presencial", 100);
+    expect(r.lucro).toBe(700);
+    const porDestino = Object.fromEntries(r.fatias.map((f) => [f.destino, f.valor]));
+    expect(porDestino.Maiele).toBe(280); // 40%
+    expect(porDestino.Michele).toBe(245); // 35%
+    expect(porDestino.Cassia).toBe(14); // 2%
+    expect(porDestino.Caixa).toBe(161); // 23%
+  });
+
   it("nunca produz lucro negativo", () => {
     const r = calcularRateio(100, 300, "presencial");
     expect(r.lucro).toBe(0);

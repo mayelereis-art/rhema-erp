@@ -64,12 +64,15 @@ export interface ResultadoRateio {
 
 /**
  * Calcula o rateio de um contrato.
- * @param total  valor total do contrato (soma dos itens)
- * @param custos custos do serviço, que saem antes da divisão
- * @param tipo   tipo de serviço, que define os percentuais
+ * @param total    valor total do contrato (soma dos itens)
+ * @param custos   custos do serviço, que saem antes da divisão
+ * @param tipo     tipo de serviço, que define os percentuais
+ * @param desconto desconto dado ao cliente — dinheiro que não entra, então
+ *                 sai do valor antes da divisão do lucro
  */
-export function calcularRateio(total: number, custos: number, tipo: TipoServico): ResultadoRateio {
-  const t = Math.max(0, Number(total) || 0);
+export function calcularRateio(total: number, custos: number, tipo: TipoServico, desconto = 0): ResultadoRateio {
+  const d = Math.max(0, Number(desconto) || 0);
+  const t = Math.max(0, (Number(total) || 0) - d);
   const c = Math.max(0, Number(custos) || 0);
   const lucro = Math.max(0, t - c);
   const regra = RATEIO[tipo] ?? RATEIO.presencial;
