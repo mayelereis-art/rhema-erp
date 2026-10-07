@@ -98,6 +98,8 @@ Regras:
 - Liste apenas o que você consegue ver nas fotos. Nunca invente elementos. Se algo é incerto, inclua com confiança BAIXA e explique em "observacao".
 - confianca: ALTA (claramente visível e identificável), MEDIA (visível, mas tipo/quantidade incertos), BAIXA (parcialmente visível ou suposição). confiancaPct de 0 a 100, coerente com o nível.
 - produtoId: use o id de um item do CATÁLOGO RHEMA somente se for de fato a mesma peça ou equivalente direto. Caso contrário, deixe "". Não force correspondências.
+- Se um único produto do catálogo (ex.: um kit) cobre várias peças da foto, liste-o uma vez só, com a quantidade em unidades desse produto, e cite as peças cobertas em "observacao". Nunca repita o mesmo produtoId em duas linhas.
+- Peças necessárias mas não visíveis (ex.: estrutura interna) só entram se forem indispensáveis e não estiverem incluídas num kit já listado.
 - tipo: ITEM para peças reutilizáveis (painel, cilindro, mesa, suporte, vaso, tapete); CONSUMIVEL para o que se gasta no evento (balões, flores naturais, adesivos); SERVICO para personalização feita sob medida (ex.: número personalizado, painel impresso exclusivo).
 - materiais: para componentes que precisam ser produzidos (ex.: arco de balões), estime os materiais e quantidades. Para peças prontas, deixe a lista vazia.
 - horasEstimadas: estimativa de horas de produção, montagem e desmontagem para a decoração completa. É apenas uma sugestão que a usuária vai revisar.
