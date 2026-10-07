@@ -18,7 +18,7 @@ export function Sidebar({ papel, nome }: { papel: string; nome: string }) {
 
   return (
     <aside
-      className="no-print"
+      className="no-print sidebar"
       style={{
         width: 230,
         flexShrink: 0,
@@ -31,10 +31,10 @@ export function Sidebar({ papel, nome }: { papel: string; nome: string }) {
         height: "100vh",
       }}
     >
-      <div style={{ padding: "26px 22px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="sidebar-topo" style={{ padding: "26px 22px 20px", display: "flex", alignItems: "center", gap: 12 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo-rhema.png" alt="Rhema Decorações" style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0 }} />
-        <div>
+        <div className="sidebar-texto">
           <div style={{ fontFamily: "var(--font-d)", fontSize: 23, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1 }}>
             Rhema <em style={{ color: "var(--gold)", fontStyle: "italic" }}>Decorações</em>
           </div>
@@ -51,6 +51,8 @@ export function Sidebar({ papel, nome }: { papel: string; nome: string }) {
             <Link
               key={item.href}
               href={item.href}
+              title={item.rotulo}
+              className="sidebar-link"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -66,14 +68,14 @@ export function Sidebar({ papel, nome }: { papel: string; nome: string }) {
               }}
             >
               <span style={{ width: 18, textAlign: "center", fontSize: 15 }}>{item.icone}</span>
-              {item.rotulo}
+              <span className="sidebar-texto">{item.rotulo}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div style={{ padding: "16px 22px", fontSize: 11, color: "#8b82a6", borderTop: "1px solid rgba(255,255,255,.08)" }}>
-        <div style={{ marginBottom: 8 }}>{nome} · {papel}</div>
+      <div className="sidebar-rodape" style={{ padding: "16px 22px", fontSize: 11, color: "#8b82a6", borderTop: "1px solid rgba(255,255,255,.08)" }}>
+        <div className="sidebar-texto" style={{ marginBottom: 8 }}>{nome} · {papel}</div>
         <button onClick={handleSignOut} style={{ color: "#c5bdd6", fontSize: 11, fontWeight: 600 }}>
           Sair
         </button>

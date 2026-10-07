@@ -83,7 +83,7 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
         <Stat rotulo="Saldo projetado" valor={saldoProjetado} cor={saldoProjetado >= 0 ? "var(--sage)" : "var(--rose-deep)"} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "start" }}>
+      <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, alignItems: "start" }}>
         <Secao titulo="Contas a receber" sub={verTudo ? "Todos os meses" : "Movimento do mês selecionado"}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <tbody>

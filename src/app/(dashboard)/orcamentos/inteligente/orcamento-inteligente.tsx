@@ -222,7 +222,7 @@ export function OrcamentoInteligente({
         </Aviso>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22, alignItems: "start" }}>
+      <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 22, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <Secao titulo="Referências da decoração">
             <label className="btn btn-g" style={{ cursor: "pointer", opacity: fotos.length >= MAX_FOTOS ? 0.5 : 1 }}>
@@ -873,7 +873,7 @@ function ResumoCustos({
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+      <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 6 }}>Custo interno</div>
           <LinhaValor rotulo="Materiais de consumo (com perdas)" valor={r.custoMateriais} />

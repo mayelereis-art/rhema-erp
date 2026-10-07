@@ -141,7 +141,7 @@ export function OrcamentoBuilder({
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
+    <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ background: "var(--cream)", border: "1px solid var(--line)", borderRadius: "var(--r)", padding: "10px 14px", fontSize: 12.5, color: "var(--ink-soft)" }}>
           Este orçamento não reserva estoque — a checagem de disponibilidade só acontece quando você converter em contrato.

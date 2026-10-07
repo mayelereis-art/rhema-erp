@@ -62,6 +62,34 @@ a {
   transition: 0.15s;
   white-space: nowrap;
 }
+/* Tablet em pé e telas estreitas: menu lateral só com ícones e telas de duas
+   colunas empilhadas. Os !important vencem os estilos inline das páginas. */
+@media (max-width: 900px) {
+  .sidebar {
+    width: 64px !important;
+  }
+  .sidebar-texto {
+    display: none !important;
+  }
+  .sidebar-link {
+    justify-content: center;
+    padding: 12px 0 !important;
+  }
+  .sidebar-topo {
+    padding: 18px 11px 14px !important;
+  }
+  .sidebar-rodape {
+    padding: 12px 8px !important;
+    text-align: center;
+  }
+  nav:has(> .sidebar-link) {
+    padding: 8px 6px !important;
+  }
+  .grade-responsiva {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

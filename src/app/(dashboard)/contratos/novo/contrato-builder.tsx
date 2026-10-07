@@ -130,7 +130,7 @@ export function ContratoBuilder({
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
+    <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Secao titulo="Cliente e evento">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

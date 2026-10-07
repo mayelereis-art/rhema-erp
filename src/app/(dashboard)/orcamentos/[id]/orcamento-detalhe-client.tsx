@@ -59,7 +59,7 @@ export function OrcamentoDetalheClient({
   const numeroOrcamento = `${orcamento.numero}`.padStart(3, "0");
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
+    <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 22, alignItems: "start" }}>
       <div
         id="documento-contrato"
         style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: "var(--r)", boxShadow: "var(--shadow)", padding: 28 }}

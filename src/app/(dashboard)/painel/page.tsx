@@ -72,7 +72,7 @@ export default async function PainelPage() {
           <Cartao titulo="Faturamento do mês" valor={`R$ ${faturamentoMes.toFixed(2)}`} cor="var(--rose)" legenda="contratos no mês atual" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20 }}>
+        <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20 }}>
           <Secao titulo="Próximos eventos confirmados">
             {proximosEventos.length === 0 && <div style={{ color: "var(--ink-soft)", fontSize: 13.5 }}>Nenhum evento confirmado à frente.</div>}
             {proximosEventos.map((c) => (

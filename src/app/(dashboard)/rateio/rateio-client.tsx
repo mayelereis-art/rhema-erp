@@ -89,7 +89,7 @@ export function RateioClient({
         />
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+      <div className="grade-responsiva" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
         <TabelaReferencia titulo="Presencial (decoração no local)" regra={regras.presencial} />
         <TabelaReferencia titulo="Peg&Monte (retirada pelo cliente)" regra={regras.pegmonte} />
       </div>
