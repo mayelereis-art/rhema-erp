@@ -169,7 +169,10 @@ export async function analisarDecoracao(dadosBrutos: DadosPedidoAnalise): Promis
     .join("\n");
 
   try {
-    const client = new Anthropic();
+    // Chaves criadas no nível da organização exigem o workspace no cabeçalho.
+    // O ID do workspace não é segredo; fica em ANTHROPIC_WORKSPACE_ID.
+    const workspace = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+    const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
     const resposta = await client.beta.messages.create({
       model: MODELO,
       max_tokens: 16000,

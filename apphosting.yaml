@@ -29,3 +29,8 @@ env:
     secret: ANTHROPIC_API_KEY
     availability:
       - RUNTIME
+  # A chave é da organização; o workspace (não secreto) vai no cabeçalho.
+  - variable: ANTHROPIC_WORKSPACE_ID
+    value: "wrkspc_01QXeEUSLy5YJLposLTG7gFJ"
+    availability:
+      - RUNTIME
