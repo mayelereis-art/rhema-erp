@@ -17,5 +17,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/fornecedores", icone: "◐", rotulo: "Fornecedores" },
   { href: "/financeiro", icone: "$", rotulo: "Financeiro", papeis: ["ADMIN", "SOCIA"] },
   { href: "/rateio", icone: "%", rotulo: "Rateio (sócias)", papeis: ["ADMIN", "SOCIA"] },
+  { href: "/configuracoes/precificacao", icone: "⚙", rotulo: "Regras de preço", papeis: ["ADMIN"] },
   { href: "/loja", icone: "◈", rotulo: "Loja virtual" },
 ];

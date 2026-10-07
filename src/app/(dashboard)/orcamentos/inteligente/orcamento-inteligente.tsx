@@ -9,6 +9,12 @@ import { consultarDisponibilidade } from "@/lib/disponibilidade-dados";
 import { analisarDecoracao, type AnaliseDecoracao, type ComponenteIA, type ResultadoAnalise } from "@/lib/orcamento-ia";
 import { ehSabado, statusComponente, sugerirProdutos, type ProdutoCatalogo, type StatusComponente } from "@/lib/cruzamento-catalogo";
 import type { Cliente, TipoServico } from "@/lib/firestore-schema";
+import { calcularOrcamento, precoVendaSugerido, type RegrasPrecificacao } from "@/lib/motor-custos";
+
+/** Componente da análise + custo interno e preço de venda (usados quando não é item do catálogo). */
+export type Linha = ComponenteIA & { custoUnitario: number; precoUnitario: number; precoManual: boolean };
+const SEM_PRECO = { custoUnitario: 0, precoUnitario: 0, precoManual: false };
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const TIPOS_ACEITOS = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FOTOS = 8;
@@ -23,10 +29,12 @@ interface Foto {
 export function OrcamentoInteligente({
   clientes: clientesIniciais,
   catalogo,
+  regras,
   iaConfigurada,
 }: {
   clientes: Cliente[];
   catalogo: ProdutoCatalogo[];
+  regras: RegrasPrecificacao;
   iaConfigurada: boolean;
 }) {
   const [fotos, setFotos] = useState<Foto[]>([]);
@@ -44,8 +52,10 @@ export function OrcamentoInteligente({
   const [resultado, setResultado] = useState<ResultadoAnalise | null>(null);
   const [analisando, iniciar] = useTransition();
   // Cópia editável dos componentes — a análise original da IA fica intacta em `resultado`.
-  const [componentes, setComponentes] = useState<ComponenteIA[] | null>(null);
+  const [componentes, setComponentes] = useState<Linha[] | null>(null);
   const [livre, setLivre] = useState<Record<string, number> | null>(null);
+  const [horas, setHoras] = useState({ producao: 0, montagem: 0, desmontagem: 0 });
+  const [km, setKm] = useState(0);
   const [erroEstoque, setErroEstoque] = useState(false);
 
   useEffect(() => {
@@ -126,7 +136,10 @@ export function OrcamentoInteligente({
         tipoServico,
       });
       setResultado(r);
-      if (r.ok) setComponentes(r.analise.componentes.map((c) => ({ ...c, materiais: [...c.materiais] })));
+      if (r.ok) {
+        setComponentes(r.analise.componentes.map((c) => ({ ...c, materiais: [...c.materiais], ...SEM_PRECO })));
+        setHoras(r.analise.horasEstimadas);
+      }
     });
   }
 
@@ -296,6 +309,22 @@ export function OrcamentoInteligente({
           livre={livre}
           erroEstoque={erroEstoque}
           dataEvento={dataEvento}
+          regras={regras}
+        />
+      )}
+
+      {componentes && (
+        <ResumoCustos
+          componentes={componentes}
+          catalogo={catalogo}
+          regras={regras}
+          modalidade={tipoServico}
+          dataEvento={dataEvento}
+          horas={horas}
+          setHoras={setHoras}
+          km={km}
+          setKm={setKm}
+          horasDaIA={resultado?.ok === true}
         />
       )}
     </div>
@@ -324,16 +353,19 @@ function ResultadoIA({
   livre,
   erroEstoque,
   dataEvento,
+  regras,
 }: {
   analise: AnaliseDecoracao | null;
-  componentes: ComponenteIA[];
-  setComponentes: React.Dispatch<React.SetStateAction<ComponenteIA[] | null>>;
+  componentes: Linha[];
+  setComponentes: React.Dispatch<React.SetStateAction<Linha[] | null>>;
   catalogo: ProdutoCatalogo[];
   livre: Record<string, number> | null;
   erroEstoque: boolean;
   dataEvento: string;
+  regras: RegrasPrecificacao;
 }) {
   const nomeProduto = new Map(catalogo.map((p) => [p.id, p.nome]));
+  const diaria = new Map(catalogo.map((p) => [p.id, p.precoDiaria ?? 0]));
   const baixas = componentes.filter((c) => c.confianca === "BAIXA").length;
   const status = componentes.map((c) => statusComponente(c.produtoId, c.tipo, c.quantidade, livre?.[c.produtoId]));
   const faltando = status.filter((s) => s === "INSUFICIENTE" || s === "INDISPONIVEL").length;
@@ -343,8 +375,18 @@ function ResultadoIA({
   for (const c of componentes) if (c.produtoId) pedidoPorProduto.set(c.produtoId, (pedidoPorProduto.get(c.produtoId) ?? 0) + c.quantidade);
   const duplicados = [...pedidoPorProduto].filter(([id, qtd]) => livre && qtd > (livre[id] ?? 0) && componentes.filter((c) => c.produtoId === id).length > 1);
 
-  function atualizar(i: number, mudanca: Partial<ComponenteIA>) {
-    setComponentes((prev) => prev && prev.map((c, j) => (j === i ? { ...c, ...mudanca } : c)));
+  function atualizar(i: number, mudanca: Partial<Linha>) {
+    setComponentes(
+      (prev) =>
+        prev &&
+        prev.map((c, j) => {
+          if (j !== i) return c;
+          const nova = { ...c, ...mudanca };
+          // Enquanto a usuária não digitar um preço, ele acompanha custo × markup.
+          if (!nova.precoManual) nova.precoUnitario = precoVendaSugerido(nova.custoUnitario, nova.tipo, regras);
+          return nova;
+        })
+    );
   }
   function remover(i: number) {
     setComponentes((prev) => prev && prev.filter((_, j) => j !== i));
@@ -352,7 +394,7 @@ function ResultadoIA({
   function adicionar() {
     setComponentes((prev) => [
       ...(prev ?? []),
-      { descricao: "", quantidade: 1, confianca: "ALTA", confiancaPct: 100, produtoId: "", tipo: "ITEM", observacao: OBS_MANUAL, materiais: [] },
+      { descricao: "", quantidade: 1, confianca: "ALTA", confiancaPct: 100, produtoId: "", tipo: "ITEM", observacao: OBS_MANUAL, materiais: [], ...SEM_PRECO },
     ]);
   }
 
@@ -380,6 +422,7 @@ function ResultadoIA({
         {baixas > 0 && <Aviso cor="var(--rose-deep)">{baixas} item(ns) com confiança baixa — confira nas fotos antes de usar no orçamento.</Aviso>}
       </div>
 
+      <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
           <tr style={{ textAlign: "left", color: "var(--ink-soft)", fontSize: 11.5 }}>
@@ -388,6 +431,8 @@ function ResultadoIA({
             <th style={th}>Tipo</th>
             <th style={th}>Produto no catálogo RHEMA</th>
             <th style={th}>Estoque na data</th>
+            <th style={th}>Custo un. (interno)</th>
+            <th style={th}>Preço un. (cliente)</th>
             <th style={{ ...th, textAlign: "right" }}>Confiança</th>
             <th style={th}></th>
           </tr>
@@ -469,6 +514,49 @@ function ResultadoIA({
                     </>
                   )}
                 </td>
+                {c.produtoId ? (
+                  <>
+                    <td style={{ ...td, color: "var(--ink-soft)", fontSize: 12 }}>item próprio</td>
+                    <td style={td}>
+                      {brl(diaria.get(c.produtoId) ?? 0)}
+                      <div style={{ fontSize: 11, color: "var(--ink-soft)" }}>diária do catálogo</div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td style={td}>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={c.custoUnitario || ""}
+                        placeholder="0,00"
+                        onChange={(e) => atualizar(i, { custoUnitario: Math.max(0, Number(e.target.value)) })}
+                        style={{ ...campoStyle, padding: "5px 7px", minWidth: 84 }}
+                      />
+                    </td>
+                    <td style={td}>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={c.precoUnitario || ""}
+                        placeholder="0,00"
+                        onChange={(e) => atualizar(i, { precoUnitario: Math.max(0, Number(e.target.value)), precoManual: true })}
+                        style={{ ...campoStyle, padding: "5px 7px", minWidth: 84 }}
+                      />
+                      <div style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                        {c.precoManual ? (
+                          <button type="button" onClick={() => atualizar(i, { precoManual: false })} style={{ color: "var(--rose-deep)", fontSize: 11 }}>
+                            usar markup
+                          </button>
+                        ) : (
+                          `custo + ${regras.markupPct}%${c.tipo === "CONSUMIVEL" ? " + perdas" : ""}`
+                        )}
+                      </div>
+                    </td>
+                  </>
+                )}
                 <td style={{ ...td, textAlign: "right", color: COR_CONFIANCA[c.confianca], fontWeight: 600, whiteSpace: "nowrap" }}>
                   {c.observacao === OBS_MANUAL ? (
                     <span style={{ color: "var(--ink-soft)", fontWeight: 400 }}>manual</span>
@@ -488,13 +576,14 @@ function ResultadoIA({
           })}
           {componentes.length === 0 && (
             <tr>
-              <td style={td} colSpan={7}>
+              <td style={td} colSpan={9}>
                 Nenhum item ainda.
               </td>
             </tr>
           )}
         </tbody>
       </table>
+      </div>
 
       <button type="button" className="btn btn-g btn-sm" onClick={adicionar} style={{ marginTop: 10 }}>
         + Adicionar item
@@ -513,6 +602,135 @@ function ResultadoIA({
         Próximas etapas: preços, custos e revisão final antes de gerar o orçamento. Nada é reservado nesta tela.
       </div>
     </Secao>
+  );
+}
+
+type Horas = { producao: number; montagem: number; desmontagem: number };
+
+function ResumoCustos({
+  componentes,
+  catalogo,
+  regras,
+  modalidade,
+  dataEvento,
+  horas,
+  setHoras,
+  km,
+  setKm,
+  horasDaIA,
+}: {
+  componentes: Linha[];
+  catalogo: ProdutoCatalogo[];
+  regras: RegrasPrecificacao;
+  modalidade: TipoServico;
+  dataEvento: string;
+  horas: Horas;
+  setHoras: (h: Horas) => void;
+  km: number;
+  setKm: (v: number) => void;
+  horasDaIA: boolean;
+}) {
+  const diaria = new Map(catalogo.map((p) => [p.id, p.precoDiaria ?? 0]));
+  const presencial = modalidade === "PRESENCIAL";
+  const r = calcularOrcamento({
+    modalidade,
+    dataEvento: dataEvento || undefined,
+    horas,
+    km,
+    regras,
+    linhas: componentes.map((c) => ({
+      descricao: c.descricao,
+      quantidade: c.quantidade,
+      tipo: c.tipo,
+      produtoId: c.produtoId || undefined,
+      precoDiaria: c.produtoId ? diaria.get(c.produtoId) : undefined,
+      custoUnitario: c.custoUnitario,
+      precoUnitario: c.precoUnitario,
+    })),
+  });
+  const corMargem = r.precoSugerido === 0 ? "var(--ink-soft)" : r.margemPct < regras.margemMinimaPct ? "var(--rose-deep)" : "var(--sage)";
+
+  return (
+    <Secao titulo="Custos e preço sugerido">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12, marginBottom: 16 }}>
+        <Campo label={`Produção (h)${horasDaIA ? " · sugestão IA" : ""}`}>
+          <input type="number" min={0} step="0.5" value={horas.producao} onChange={(e) => setHoras({ ...horas, producao: Math.max(0, Number(e.target.value)) })} style={campoStyle} />
+        </Campo>
+        <Campo label="Montagem (h)">
+          <input type="number" min={0} step="0.5" disabled={!presencial} value={horas.montagem} onChange={(e) => setHoras({ ...horas, montagem: Math.max(0, Number(e.target.value)) })} style={campoStyle} />
+        </Campo>
+        <Campo label="Desmontagem (h)">
+          <input type="number" min={0} step="0.5" disabled={!presencial} value={horas.desmontagem} onChange={(e) => setHoras({ ...horas, desmontagem: Math.max(0, Number(e.target.value)) })} style={campoStyle} />
+        </Campo>
+        <Campo label="Km (ida e volta)">
+          <input type="number" min={0} disabled={!presencial} value={km} onChange={(e) => setKm(Math.max(0, Number(e.target.value)))} style={campoStyle} />
+        </Campo>
+      </div>
+      {!presencial && (
+        <div style={{ fontSize: 12, color: "var(--ink-soft)", marginBottom: 12 }}>
+          Pegue e Monte: montagem, desmontagem e deslocamento não entram (o cliente retira e monta). A produção/personalização continua contando como custo.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 6 }}>Custo interno</div>
+          <LinhaValor rotulo="Materiais de consumo (com perdas)" valor={r.custoMateriais} />
+          <LinhaValor rotulo="Itens novos / personalizados" valor={r.custoItensNovos} />
+          <LinhaValor rotulo="Uso de itens próprios" valor={r.custoUtilizacao} />
+          <LinhaValor rotulo="Mão de obra" valor={r.custoMaoDeObra} />
+          <LinhaValor rotulo="Deslocamento" valor={r.custoDeslocamento} />
+          <LinhaValor rotulo={`Contingência (${regras.contingenciaPct}%)`} valor={r.custoContingencia} />
+          <LinhaValor rotulo="Custo estimado" valor={r.custoEstimado} destaque />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--ink-soft)", marginBottom: 6 }}>Preço ao cliente</div>
+          <LinhaValor rotulo="Locação de itens RHEMA" valor={r.receitaLocacao} />
+          <LinhaValor rotulo="Itens avulsos e materiais" valor={r.receitaAvulsos} />
+          {presencial && <LinhaValor rotulo="Serviço (montagem, mão de obra, deslocamento)" valor={r.receitaServico} />}
+          {r.adicionalPersonalizacao > 0 && <LinhaValor rotulo={`Adicional personalização (${regras.adicionalPersonalizacaoPct}%)`} valor={r.adicionalPersonalizacao} />}
+          {r.adicionalUrgencia > 0 && <LinhaValor rotulo={`Adicional urgência (${regras.adicionalUrgenciaPct}%)`} valor={r.adicionalUrgencia} />}
+          <LinhaValor rotulo="Preço sugerido" valor={r.precoSugerido} destaque />
+          <LinhaValor rotulo={`Preço mínimo (margem ${regras.margemMinimaPct}%)`} valor={r.precoMinimo} />
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 13.5, fontWeight: 700, color: corMargem }}>
+            <span>Margem estimada</span>
+            <span>{r.precoSugerido > 0 ? `${r.margemPct.toFixed(1)}%` : "—"}</span>
+          </div>
+        </div>
+      </div>
+
+      {r.alertas.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 14 }}>
+          {r.alertas.map((a) => (
+            <Aviso key={a} cor="var(--rose-deep)">
+              🔴 {a}
+            </Aviso>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 12 }}>
+        Valores calculados com as regras de precificação atuais. O cliente verá apenas os preços, nunca os custos internos.
+      </div>
+    </Secao>
+  );
+}
+
+function LinhaValor({ rotulo, valor, destaque }: { rotulo: string; valor: number; destaque?: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "4px 0",
+        fontSize: destaque ? 14.5 : 13,
+        fontWeight: destaque ? 700 : 400,
+        borderTop: destaque ? "1px solid var(--line)" : undefined,
+        marginTop: destaque ? 4 : 0,
+      }}
+    >
+      <span>{rotulo}</span>
+      <span>{brl(valor)}</span>
+    </div>
   );
 }
 

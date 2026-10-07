@@ -9,6 +9,7 @@ export interface ProdutoCatalogo {
   id: string;
   nome: string;
   categoriaNome: string;
+  precoDiaria?: number;
 }
 
 export type StatusComponente =
