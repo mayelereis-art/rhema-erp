@@ -1,6 +1,7 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 // Em produção (Firebase App Hosting), as credenciais vêm automaticamente do
 // ambiente — não é preciso FIREBASE_SERVICE_ACCOUNT_KEY. Em dev local, defina
@@ -27,6 +28,7 @@ function criarApp(): App {
 const adminApp = criarApp();
 
 export const adminAuth = getAuth(adminApp);
+export const adminBucket = () => getStorage(adminApp).bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
 export const adminDb = getFirestore(adminApp);
 // Vários formulários enviam campos opcionais como `undefined` (ex.: categoriaId,
 // fotoUrl) quando vazios — sem isso, o Admin SDK rejeita o write inteiro.

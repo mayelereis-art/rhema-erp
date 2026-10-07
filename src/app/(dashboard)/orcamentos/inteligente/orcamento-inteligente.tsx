@@ -5,7 +5,7 @@ import { deleteObject, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase-client";
 import { comprimirImagem } from "@/lib/imagem-cliente";
 import { criarCliente } from "@/lib/clientes";
-import { analisarDecoracao, type ResultadoAnalise } from "@/lib/orcamento-ia";
+import { analisarDecoracao, type AnaliseDecoracao, type ResultadoAnalise } from "@/lib/orcamento-ia";
 import type { Cliente, TipoServico } from "@/lib/firestore-schema";
 
 const TIPOS_ACEITOS = ["image/jpeg", "image/png", "image/webp"];
@@ -18,7 +18,15 @@ interface Foto {
   status: "enviando" | "ok" | "erro";
 }
 
-export function OrcamentoInteligente({ clientes: clientesIniciais, iaConfigurada }: { clientes: Cliente[]; iaConfigurada: boolean }) {
+export function OrcamentoInteligente({
+  clientes: clientesIniciais,
+  nomeProduto,
+  iaConfigurada,
+}: {
+  clientes: Cliente[];
+  nomeProduto: Record<string, string>;
+  iaConfigurada: boolean;
+}) {
   const [fotos, setFotos] = useState<Foto[]>([]);
   const [descricao, setDescricao] = useState("");
   const [clientes, setClientes] = useState(clientesIniciais);
@@ -236,12 +244,92 @@ export function OrcamentoInteligente({ clientes: clientesIniciais, iaConfigurada
         {enviando && <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>Aguarde o envio das fotos...</span>}
       </div>
 
+      {analisando && (
+        <Aviso cor="var(--ink-soft)">A IA está analisando as fotos. Isso costuma levar de 20 segundos a 1 minuto.</Aviso>
+      )}
+
       {resultado && !resultado.ok && (
         <Aviso cor={resultado.codigo === "DADOS_INVALIDOS" ? "var(--rose-deep)" : "var(--gold)"}>{resultado.mensagem}</Aviso>
       )}
+
+      {resultado?.ok && <ResultadoIA analise={resultado.analise} nomeProduto={nomeProduto} />}
     </div>
   );
 }
+
+const COR_CONFIANCA = { ALTA: "var(--sage)", MEDIA: "var(--gold)", BAIXA: "var(--rose-deep)" } as const;
+const ROTULO_TIPO = { ITEM: "Item", CONSUMIVEL: "Consumível", SERVICO: "Personalizado" } as const;
+
+function ResultadoIA({ analise, nomeProduto }: { analise: AnaliseDecoracao; nomeProduto: Record<string, string> }) {
+  const baixas = analise.componentes.filter((c) => c.confianca === "BAIXA").length;
+  const h = analise.horasEstimadas;
+
+  return (
+    <Secao titulo="Análise da IA">
+      <div style={{ fontSize: 13.5, marginBottom: 12 }}>
+        <strong>Tema:</strong> {analise.tema || "—"} · <strong>Evento:</strong> {analise.tipoEvento || "—"}
+      </div>
+
+      {baixas > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <Aviso cor="var(--rose-deep)">
+            {baixas} item(ns) com confiança baixa — confira nas fotos antes de usar no orçamento.
+          </Aviso>
+        </div>
+      )}
+
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr style={{ textAlign: "left", color: "var(--ink-soft)", fontSize: 11.5 }}>
+            <th style={th}>Item identificado</th>
+            <th style={{ ...th, textAlign: "right" }}>Qtd.</th>
+            <th style={th}>Tipo</th>
+            <th style={th}>No catálogo RHEMA</th>
+            <th style={{ ...th, textAlign: "right" }}>Confiança</th>
+          </tr>
+        </thead>
+        <tbody>
+          {analise.componentes.map((c, i) => (
+            <tr key={i} style={{ borderTop: "1px solid var(--line)", verticalAlign: "top" }}>
+              <td style={td}>
+                {c.descricao}
+                {c.observacao && <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>{c.observacao}</div>}
+                {c.materiais.length > 0 && (
+                  <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 3 }}>
+                    Materiais: {c.materiais.map((m) => `${m.quantidade} ${m.unidade} ${m.descricao}`).join(" · ")}
+                  </div>
+                )}
+              </td>
+              <td style={{ ...td, textAlign: "right" }}>{c.quantidade}</td>
+              <td style={td}>{ROTULO_TIPO[c.tipo]}</td>
+              <td style={td}>
+                {c.produtoId && nomeProduto[c.produtoId] ? (
+                  <span style={{ color: "var(--sage)" }}>✅ {nomeProduto[c.produtoId]}</span>
+                ) : (
+                  <span style={{ color: "var(--gold)" }}>⚠️ Não cadastrado</span>
+                )}
+              </td>
+              <td style={{ ...td, textAlign: "right", color: COR_CONFIANCA[c.confianca], fontWeight: 600, whiteSpace: "nowrap" }}>
+                {c.confiancaPct}%{c.confianca === "BAIXA" && " · revisar"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ fontSize: 13, marginTop: 14 }}>
+        <strong>Tempo estimado (sugestão):</strong> produção {h.producao}h · montagem {h.montagem}h · desmontagem {h.desmontagem}h
+      </div>
+      {analise.observacoes && <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 6 }}>{analise.observacoes}</div>}
+      <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 12 }}>
+        Próximas etapas: estoque na data, preços, custos e revisão antes de gerar o orçamento.
+      </div>
+    </Secao>
+  );
+}
+
+const th: React.CSSProperties = { padding: "4px 6px" };
+const td: React.CSSProperties = { padding: "7px 6px" };
 
 function Aviso({ cor, children }: { cor: string; children: React.ReactNode }) {
   return (
