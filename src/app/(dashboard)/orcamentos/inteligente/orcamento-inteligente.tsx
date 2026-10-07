@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { deleteObject, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase-client";
 import { comprimirImagem } from "@/lib/imagem-cliente";
 import { criarCliente } from "@/lib/clientes";
-import { analisarDecoracao, type AnaliseDecoracao, type ResultadoAnalise } from "@/lib/orcamento-ia";
+import { consultarDisponibilidade } from "@/lib/disponibilidade-dados";
+import { analisarDecoracao, type AnaliseDecoracao, type ComponenteIA, type ResultadoAnalise } from "@/lib/orcamento-ia";
+import { ehSabado, statusComponente, sugerirProdutos, type ProdutoCatalogo, type StatusComponente } from "@/lib/cruzamento-catalogo";
 import type { Cliente, TipoServico } from "@/lib/firestore-schema";
 
 const TIPOS_ACEITOS = ["image/jpeg", "image/png", "image/webp"];
@@ -20,11 +22,11 @@ interface Foto {
 
 export function OrcamentoInteligente({
   clientes: clientesIniciais,
-  nomeProduto,
+  catalogo,
   iaConfigurada,
 }: {
   clientes: Cliente[];
-  nomeProduto: Record<string, string>;
+  catalogo: ProdutoCatalogo[];
   iaConfigurada: boolean;
 }) {
   const [fotos, setFotos] = useState<Foto[]>([]);
@@ -41,6 +43,28 @@ export function OrcamentoInteligente({
   const [tipoServico, setTipoServico] = useState<TipoServico>("PRESENCIAL");
   const [resultado, setResultado] = useState<ResultadoAnalise | null>(null);
   const [analisando, iniciar] = useTransition();
+  // Cópia editável dos componentes — a análise original da IA fica intacta em `resultado`.
+  const [componentes, setComponentes] = useState<ComponenteIA[] | null>(null);
+  const [livre, setLivre] = useState<Record<string, number> | null>(null);
+  const [erroEstoque, setErroEstoque] = useState(false);
+
+  useEffect(() => {
+    if (!componentes || !dataEvento) return;
+    let cancelado = false;
+    setLivre(null);
+    setErroEstoque(false);
+    const data = new Date(dataEvento).toISOString();
+    consultarDisponibilidade(data, data)
+      .then((linhas) => {
+        if (!cancelado) setLivre(Object.fromEntries(linhas.map((l) => [l.produtoId, l.livre])));
+      })
+      .catch(() => !cancelado && setErroEstoque(true));
+    return () => {
+      cancelado = true;
+    };
+    // só recarrega quando muda a data ou quando a lista passa a existir
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataEvento, componentes === null]);
 
   const enviando = fotos.some((f) => f.status === "enviando");
   const fotosProntas = fotos.filter((f) => f.status === "ok" && f.caminho);
@@ -102,7 +126,13 @@ export function OrcamentoInteligente({
         tipoServico,
       });
       setResultado(r);
+      if (r.ok) setComponentes(r.analise.componentes.map((c) => ({ ...c, materiais: [...c.materiais] })));
     });
+  }
+
+  function montarManualmente() {
+    setResultado(null);
+    setComponentes((prev) => prev ?? []);
   }
 
   return (
@@ -242,6 +272,11 @@ export function OrcamentoInteligente({
           <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>Envie ao menos uma foto e informe a data do evento.</span>
         )}
         {enviando && <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>Aguarde o envio das fotos...</span>}
+        {componentes === null && (
+          <button type="button" className="btn btn-g" disabled={analisando} onClick={montarManualmente} style={{ marginLeft: "auto" }}>
+            Montar manualmente
+          </button>
+        )}
       </div>
 
       {analisando && (
@@ -252,7 +287,17 @@ export function OrcamentoInteligente({
         <Aviso cor={resultado.codigo === "DADOS_INVALIDOS" ? "var(--rose-deep)" : "var(--gold)"}>{resultado.mensagem}</Aviso>
       )}
 
-      {resultado?.ok && <ResultadoIA analise={resultado.analise} nomeProduto={nomeProduto} />}
+      {componentes && (
+        <ResultadoIA
+          analise={resultado?.ok ? resultado.analise : null}
+          componentes={componentes}
+          setComponentes={setComponentes}
+          catalogo={catalogo}
+          livre={livre}
+          erroEstoque={erroEstoque}
+          dataEvento={dataEvento}
+        />
+      )}
     </div>
   );
 }
@@ -260,69 +305,212 @@ export function OrcamentoInteligente({
 const COR_CONFIANCA = { ALTA: "var(--sage)", MEDIA: "var(--gold)", BAIXA: "var(--rose-deep)" } as const;
 const ROTULO_TIPO = { ITEM: "Item", CONSUMIVEL: "Consumível", SERVICO: "Personalizado" } as const;
 
-function ResultadoIA({ analise, nomeProduto }: { analise: AnaliseDecoracao; nomeProduto: Record<string, string> }) {
-  const baixas = analise.componentes.filter((c) => c.confianca === "BAIXA").length;
-  const h = analise.horasEstimadas;
+const OBS_MANUAL = "Adicionado manualmente";
+
+const ROTULO_STATUS: Record<StatusComponente, { texto: string; cor: string }> = {
+  DISPONIVEL: { texto: "✅ Disponível", cor: "var(--sage)" },
+  INSUFICIENTE: { texto: "🔴 Quantidade insuficiente", cor: "var(--rose-deep)" },
+  INDISPONIVEL: { texto: "🔴 Indisponível na data", cor: "var(--rose-deep)" },
+  NAO_CADASTRADO: { texto: "⚠️ Não cadastrado", cor: "var(--gold)" },
+  CONSUMIVEL_A_COMPRAR: { texto: "🛒 Consumível — a comprar", cor: "var(--gold)" },
+  PERSONALIZADO: { texto: "✂️ Personalizado — produzir", cor: "var(--gold)" },
+};
+
+function ResultadoIA({
+  analise,
+  componentes,
+  setComponentes,
+  catalogo,
+  livre,
+  erroEstoque,
+  dataEvento,
+}: {
+  analise: AnaliseDecoracao | null;
+  componentes: ComponenteIA[];
+  setComponentes: React.Dispatch<React.SetStateAction<ComponenteIA[] | null>>;
+  catalogo: ProdutoCatalogo[];
+  livre: Record<string, number> | null;
+  erroEstoque: boolean;
+  dataEvento: string;
+}) {
+  const nomeProduto = new Map(catalogo.map((p) => [p.id, p.nome]));
+  const baixas = componentes.filter((c) => c.confianca === "BAIXA").length;
+  const status = componentes.map((c) => statusComponente(c.produtoId, c.tipo, c.quantidade, livre?.[c.produtoId]));
+  const faltando = status.filter((s) => s === "INSUFICIENTE" || s === "INDISPONIVEL").length;
+
+  // Um mesmo produto vinculado a duas linhas consome o mesmo estoque.
+  const pedidoPorProduto = new Map<string, number>();
+  for (const c of componentes) if (c.produtoId) pedidoPorProduto.set(c.produtoId, (pedidoPorProduto.get(c.produtoId) ?? 0) + c.quantidade);
+  const duplicados = [...pedidoPorProduto].filter(([id, qtd]) => livre && qtd > (livre[id] ?? 0) && componentes.filter((c) => c.produtoId === id).length > 1);
+
+  function atualizar(i: number, mudanca: Partial<ComponenteIA>) {
+    setComponentes((prev) => prev && prev.map((c, j) => (j === i ? { ...c, ...mudanca } : c)));
+  }
+  function remover(i: number) {
+    setComponentes((prev) => prev && prev.filter((_, j) => j !== i));
+  }
+  function adicionar() {
+    setComponentes((prev) => [
+      ...(prev ?? []),
+      { descricao: "", quantidade: 1, confianca: "ALTA", confiancaPct: 100, produtoId: "", tipo: "ITEM", observacao: OBS_MANUAL, materiais: [] },
+    ]);
+  }
 
   return (
-    <Secao titulo="Análise da IA">
-      <div style={{ fontSize: 13.5, marginBottom: 12 }}>
-        <strong>Tema:</strong> {analise.tema || "—"} · <strong>Evento:</strong> {analise.tipoEvento || "—"}
-      </div>
-
-      {baixas > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <Aviso cor="var(--rose-deep)">
-            {baixas} item(ns) com confiança baixa — confira nas fotos antes de usar no orçamento.
-          </Aviso>
+    <Secao titulo={analise ? "Análise da IA" : "Composição da decoração"}>
+      {analise && (
+        <div style={{ fontSize: 13.5, marginBottom: 12 }}>
+          <strong>Tema:</strong> {analise.tema || "—"} · <strong>Evento:</strong> {analise.tipoEvento || "—"}
         </div>
       )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+        {!dataEvento && <Aviso cor="var(--gold)">Informe a data do evento para verificar o estoque.</Aviso>}
+        {dataEvento && ehSabado(dataEvento) && (
+          <Aviso cor="var(--gold)">A data cai num sábado — na fase inicial, sábados estão indisponíveis na agenda. Confirme antes de seguir.</Aviso>
+        )}
+        {erroEstoque && <Aviso cor="var(--rose-deep)">Não foi possível consultar o estoque agora. Tente trocar a data ou recarregar a página.</Aviso>}
+        {faltando > 0 && <Aviso cor="var(--rose-deep)">{faltando} item(ns) sem estoque suficiente na data do evento.</Aviso>}
+        {duplicados.length > 0 && (
+          <Aviso cor="var(--rose-deep)">
+            O mesmo produto está em mais de uma linha e a soma passa do estoque livre:{" "}
+            {duplicados.map(([id]) => nomeProduto.get(id)).join(", ")}.
+          </Aviso>
+        )}
+        {baixas > 0 && <Aviso cor="var(--rose-deep)">{baixas} item(ns) com confiança baixa — confira nas fotos antes de usar no orçamento.</Aviso>}
+      </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
           <tr style={{ textAlign: "left", color: "var(--ink-soft)", fontSize: 11.5 }}>
-            <th style={th}>Item identificado</th>
-            <th style={{ ...th, textAlign: "right" }}>Qtd.</th>
+            <th style={th}>Item</th>
+            <th style={{ ...th, width: 70 }}>Qtd.</th>
             <th style={th}>Tipo</th>
-            <th style={th}>No catálogo RHEMA</th>
+            <th style={th}>Produto no catálogo RHEMA</th>
+            <th style={th}>Estoque na data</th>
             <th style={{ ...th, textAlign: "right" }}>Confiança</th>
+            <th style={th}></th>
           </tr>
         </thead>
         <tbody>
-          {analise.componentes.map((c, i) => (
-            <tr key={i} style={{ borderTop: "1px solid var(--line)", verticalAlign: "top" }}>
-              <td style={td}>
-                {c.descricao}
-                {c.observacao && <div style={{ fontSize: 11.5, color: "var(--ink-soft)" }}>{c.observacao}</div>}
-                {c.materiais.length > 0 && (
-                  <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 3 }}>
-                    Materiais: {c.materiais.map((m) => `${m.quantidade} ${m.unidade} ${m.descricao}`).join(" · ")}
-                  </div>
-                )}
-              </td>
-              <td style={{ ...td, textAlign: "right" }}>{c.quantidade}</td>
-              <td style={td}>{ROTULO_TIPO[c.tipo]}</td>
-              <td style={td}>
-                {c.produtoId && nomeProduto[c.produtoId] ? (
-                  <span style={{ color: "var(--sage)" }}>✅ {nomeProduto[c.produtoId]}</span>
-                ) : (
-                  <span style={{ color: "var(--gold)" }}>⚠️ Não cadastrado</span>
-                )}
-              </td>
-              <td style={{ ...td, textAlign: "right", color: COR_CONFIANCA[c.confianca], fontWeight: 600, whiteSpace: "nowrap" }}>
-                {c.confiancaPct}%{c.confianca === "BAIXA" && " · revisar"}
+          {componentes.map((c, i) => {
+            const sugestoes = c.produtoId ? [] : sugerirProdutos(c.descricao, catalogo);
+            const st = ROTULO_STATUS[status[i]];
+            const livreItem = c.produtoId ? livre?.[c.produtoId] : undefined;
+            return (
+              <tr key={i} style={{ borderTop: "1px solid var(--line)", verticalAlign: "top" }}>
+                <td style={td}>
+                  <input
+                    value={c.descricao}
+                    onChange={(e) => atualizar(i, { descricao: e.target.value })}
+                    placeholder="Descrição do item"
+                    style={{ ...campoStyle, padding: "5px 7px", minWidth: 160 }}
+                  />
+                  {c.observacao && <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 3 }}>{c.observacao}</div>}
+                  {c.materiais.length > 0 && (
+                    <div style={{ fontSize: 11.5, color: "var(--ink-soft)", marginTop: 3 }}>
+                      Materiais: {c.materiais.map((m) => `${m.quantidade} ${m.unidade} ${m.descricao}`).join(" · ")}
+                    </div>
+                  )}
+                </td>
+                <td style={td}>
+                  <input
+                    type="number"
+                    min={1}
+                    value={c.quantidade}
+                    onChange={(e) => atualizar(i, { quantidade: Math.max(1, Number(e.target.value) || 1) })}
+                    style={{ ...campoStyle, padding: "5px 7px", minWidth: 60 }}
+                  />
+                </td>
+                <td style={td}>
+                  <select value={c.tipo} onChange={(e) => atualizar(i, { tipo: e.target.value as ComponenteIA["tipo"] })} style={{ ...campoStyle, padding: "5px 7px", minWidth: 118 }}>
+                    {Object.entries(ROTULO_TIPO).map(([v, r]) => (
+                      <option key={v} value={v}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td style={td}>
+                  <select value={c.produtoId} onChange={(e) => atualizar(i, { produtoId: e.target.value })} style={{ ...campoStyle, padding: "5px 7px", minWidth: 170 }}>
+                    <option value="">— não usar item do catálogo —</option>
+                    {sugestoes.length > 0 && (
+                      <optgroup label="Parecidos">
+                        {sugestoes.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <optgroup label="Todo o catálogo">
+                      {catalogo.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  {sugestoes.length > 0 && (
+                    <div style={{ fontSize: 11.5, color: "var(--gold)", marginTop: 3 }}>
+                      Talvez seja: {sugestoes.map((p) => p.nome).join(" ou ")}?
+                    </div>
+                  )}
+                </td>
+                <td style={{ ...td, color: st.cor, fontWeight: 600 }}>
+                  {c.produtoId && livreItem === undefined ? (
+                    <span style={{ color: "var(--ink-soft)", fontWeight: 400 }}>
+                      {!dataEvento ? "informe a data" : erroEstoque ? "—" : "consultando..."}
+                    </span>
+                  ) : (
+                    <>
+                      {st.texto}
+                      {livreItem !== undefined && <div style={{ fontSize: 11.5, fontWeight: 400 }}>{livreItem} livre(s)</div>}
+                    </>
+                  )}
+                </td>
+                <td style={{ ...td, textAlign: "right", color: COR_CONFIANCA[c.confianca], fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {c.observacao === OBS_MANUAL ? (
+                    <span style={{ color: "var(--ink-soft)", fontWeight: 400 }}>manual</span>
+                  ) : (
+                    <>
+                      {c.confiancaPct}%{c.confianca === "BAIXA" && " · revisar"}
+                    </>
+                  )}
+                </td>
+                <td style={td}>
+                  <button type="button" className="btn btn-x" aria-label="Excluir item" onClick={() => remover(i)}>
+                    ×
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+          {componentes.length === 0 && (
+            <tr>
+              <td style={td} colSpan={7}>
+                Nenhum item ainda.
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
 
-      <div style={{ fontSize: 13, marginTop: 14 }}>
-        <strong>Tempo estimado (sugestão):</strong> produção {h.producao}h · montagem {h.montagem}h · desmontagem {h.desmontagem}h
-      </div>
-      {analise.observacoes && <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 6 }}>{analise.observacoes}</div>}
+      <button type="button" className="btn btn-g btn-sm" onClick={adicionar} style={{ marginTop: 10 }}>
+        + Adicionar item
+      </button>
+
+      {analise && (
+        <>
+          <div style={{ fontSize: 13, marginTop: 14 }}>
+            <strong>Tempo estimado (sugestão da IA):</strong> produção {analise.horasEstimadas.producao}h · montagem{" "}
+            {analise.horasEstimadas.montagem}h · desmontagem {analise.horasEstimadas.desmontagem}h
+          </div>
+          {analise.observacoes && <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginTop: 6 }}>{analise.observacoes}</div>}
+        </>
+      )}
       <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 12 }}>
-        Próximas etapas: estoque na data, preços, custos e revisão antes de gerar o orçamento.
+        Próximas etapas: preços, custos e revisão final antes de gerar o orçamento. Nada é reservado nesta tela.
       </div>
     </Secao>
   );

@@ -1,12 +1,22 @@
 import { PageHeader } from "../../page-header";
 import { listarClientes } from "@/lib/clientes";
-import { listarProdutos } from "@/lib/produtos";
+import { listarCategorias, listarProdutos } from "@/lib/produtos";
 import { statusIA } from "@/lib/orcamento-ia";
 import { OrcamentoInteligente } from "./orcamento-inteligente";
 
 export default async function OrcamentoInteligentePage() {
-  const [clientes, produtos, { configurada }] = await Promise.all([listarClientes(), listarProdutos(), statusIA()]);
-  const nomeProduto = Object.fromEntries(produtos.map((p) => [p.id, p.nome]));
+  const [clientes, produtos, categorias, { configurada }] = await Promise.all([
+    listarClientes(),
+    listarProdutos(),
+    listarCategorias(),
+    statusIA(),
+  ]);
+  const nomeCategoria = new Map(categorias.map((c) => [c.id, c.nome]));
+  const catalogo = produtos.map((p) => ({
+    id: p.id,
+    nome: p.nome,
+    categoriaNome: p.categoriaId ? nomeCategoria.get(p.categoriaId) ?? "" : "",
+  }));
 
   return (
     <>
@@ -15,7 +25,7 @@ export default async function OrcamentoInteligentePage() {
         legenda="Envie as fotos de referência do cliente e a IA sugere a composição e os valores — a decisão final é sempre sua"
       />
       <div style={{ padding: "28px 34px 60px", flex: 1 }}>
-        <OrcamentoInteligente clientes={clientes} nomeProduto={nomeProduto} iaConfigurada={configurada} />
+        <OrcamentoInteligente clientes={clientes} catalogo={catalogo} iaConfigurada={configurada} />
       </div>
     </>
   );
