@@ -139,6 +139,37 @@ export interface Orcamento {
   itens: ItemContrato[];
   contratoId?: string; // preenchido quando convertido
   criadoEm: Timestamp;
+
+  // --- Campos do Orçamento Inteligente. Todos opcionais: orçamentos criados
+  // antes deles não os têm e precisam continuar abrindo/editando/convertendo.
+  horario?: string; // "HH:MM"
+  local?: string;
+  cidade?: string;
+  convidados?: number;
+  tema?: string;
+  itensAvulsos?: ItemAvulso[];
+}
+
+export type TipoItemAvulso = "ITEM" | "CONSUMIVEL" | "SERVICO";
+export type OrigemPreco = "MANUAL" | "PESQUISA_MERCADO" | "HISTORICO" | "ESTIMATIVA_IA";
+
+/**
+ * Item que entra no orçamento sem existir na coleção `produtos` — algo que a
+ * Rhema ainda não tem no acervo, ou um material de consumo (balão, fita…).
+ * Nunca cria produto automaticamente. `custoUnitario` é interno (sai do lucro
+ * antes do rateio); o cliente só vê `precoUnitario`.
+ */
+export interface ItemAvulso {
+  id: string;
+  descricao: string;
+  tipo: TipoItemAvulso;
+  quantidade: number;
+  custoUnitario: number;
+  precoUnitario: number;
+  origemPreco: OrigemPreco;
+  fonteUrl?: string;
+  dataPesquisa?: string; // ISO
+  margemPct?: number;
 }
 
 export interface Despesa {

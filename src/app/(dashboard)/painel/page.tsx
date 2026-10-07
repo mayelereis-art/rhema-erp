@@ -5,13 +5,16 @@ import { listarOrcamentos } from "@/lib/orcamentos";
 import { listarClientes } from "@/lib/clientes";
 import { listarDespesas } from "@/lib/despesas";
 import { listarProdutos } from "@/lib/produtos";
+import { obterSessao } from "@/lib/sessao-servidor";
 
 export default async function PainelPage() {
+  const sessao = await obterSessao();
+  const veFinanceiro = sessao?.papel !== "EQUIPE";
   const [contratos, orcamentos, clientes, despesas, produtos] = await Promise.all([
     listarContratos(),
     listarOrcamentos(),
     listarClientes(),
-    listarDespesas(),
+    veFinanceiro ? listarDespesas() : Promise.resolve([]),
     listarProdutos(),
   ]);
 

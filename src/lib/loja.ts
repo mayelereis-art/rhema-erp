@@ -3,8 +3,42 @@
 import { z } from "zod";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
-import { COLECOES } from "./firestore-schema";
-import { criarOrcamento } from "./orcamentos";
+import { COLECOES, type Categoria } from "./firestore-schema";
+import { gravarNovoOrcamento } from "./orcamentos-gravacao";
+
+// Só o que a vitrine pública precisa. Custo de aquisição, fornecedor, valor de
+// reposição e estoque são dados internos e não podem ir para o HTML da loja.
+export interface ProdutoPublico {
+  id: string;
+  nome: string;
+  emoji: string;
+  fotoUrl?: string;
+  precoDiaria: number;
+  destaque: boolean;
+  categoriaId?: string;
+}
+
+/** Catálogo da loja virtual — pública, sem login. */
+export async function listarCatalogoPublico(): Promise<{ produtos: ProdutoPublico[]; categorias: Categoria[] }> {
+  const [produtosSnap, categoriasSnap] = await Promise.all([
+    adminDb.collection(COLECOES.produtos).orderBy("nome").get(),
+    adminDb.collection(COLECOES.categorias).orderBy("nome").get(),
+  ]);
+  const produtos = produtosSnap.docs.map((doc) => {
+    const d = doc.data();
+    return {
+      id: doc.id,
+      nome: d.nome,
+      emoji: d.emoji,
+      fotoUrl: d.fotoUrl,
+      precoDiaria: d.precoDiaria,
+      destaque: Boolean(d.destaque),
+      categoriaId: d.categoriaId,
+    };
+  });
+  const categorias = categoriasSnap.docs.map((doc) => ({ id: doc.id, nome: doc.data().nome as string }));
+  return { produtos, categorias };
+}
 
 const ItemSolicitado = z.object({
   produtoId: z.string().min(1),
@@ -60,7 +94,7 @@ export async function solicitarOrcamentoPublico(
 
   const clienteId = await buscarOuCriarClientePorTelefone(dados.nomeCliente, dados.telefone);
 
-  const { id } = await criarOrcamento({
+  const { numero } = await gravarNovoOrcamento({
     clienteId,
     evento: dados.evento || "Solicitação via loja virtual",
     inicio: dados.inicio,
@@ -71,6 +105,5 @@ export async function solicitarOrcamentoPublico(
     itens: itensComPreco,
   });
 
-  const doc = await adminDb.collection(COLECOES.orcamentos).doc(id).get();
-  return { ok: true, numero: doc.data()!.numero };
+  return { ok: true, numero };
 }

@@ -33,9 +33,14 @@ export default async function OrcamentosPage({
         titulo="Orçamentos"
         legenda="Propostas de preço — não reservam estoque até serem convertidas em contrato"
         acao={
-          <Link href="/orcamentos/novo" className="btn btn-p">
-            + Novo orçamento
-          </Link>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/orcamentos/inteligente" className="btn btn-g">
+              ✨ Orçamento Inteligente
+            </Link>
+            <Link href="/orcamentos/novo" className="btn btn-p">
+              + Novo orçamento
+            </Link>
+          </div>
         }
       />
       <div style={{ padding: "28px 34px 60px", flex: 1 }}>

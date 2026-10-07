@@ -1,5 +1,6 @@
 "use server";
 
+import { exigirFinanceiro, exigirUsuario } from "./sessao-servidor";
 import { revalidatePath } from "next/cache";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
@@ -52,16 +53,19 @@ async function listarTodosContratos(): Promise<ContratoComId[]> {
 }
 
 export async function listarContratos(statusFiltro?: StatusContrato): Promise<ContratoComId[]> {
+  await exigirUsuario();
   const todos = await listarTodosContratos();
   return todos.filter((c) => !statusFiltro || c.status === statusFiltro).sort((a, b) => b.numero - a.numero);
 }
 
 export async function listarContratosPorCliente(clienteId: string): Promise<ContratoComId[]> {
+  await exigirUsuario();
   const todos = await listarTodosContratos();
   return todos.filter((c) => c.clienteId === clienteId).sort((a, b) => b.numero - a.numero);
 }
 
 export async function obterContrato(id: string): Promise<ContratoComId | null> {
+  await exigirUsuario();
   const doc = await adminDb.collection(COLECOES.contratos).doc(id).get();
   if (!doc.exists) return null;
   return serializar(doc.id, doc.data()!);
@@ -119,6 +123,7 @@ export async function validarDisponibilidadeContrato(
   fimISO: string,
   ignorarContratoId?: string
 ): Promise<ErroDisponibilidade[]> {
+  await exigirUsuario();
   const [contratos, produtosSnap] = await Promise.all([buscarContratosPeriodo(), adminDb.collection(COLECOES.produtos).get()]);
   const produtos = new Map(produtosSnap.docs.map((d) => [d.id, d.data()]));
 
@@ -135,6 +140,7 @@ export async function validarDisponibilidadeContrato(
 }
 
 export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; id: string } | { ok: false; erros: ErroDisponibilidade[] }> {
+  await exigirUsuario();
   const erros = await validarDisponibilidadeContrato(dados.itens, dados.inicio, dados.fim);
   if (erros.length > 0) return { ok: false, erros };
 
@@ -177,12 +183,14 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
 }
 
 export async function atualizarStatusContrato(id: string, status: StatusContrato) {
+  await exigirUsuario();
   await adminDb.collection(COLECOES.contratos).doc(id).update({ status });
   revalidatePath("/contratos");
   revalidatePath(`/contratos/${id}`);
 }
 
 export async function marcarParcelaPaga(contratoId: string, indiceParcela: number, pago: boolean) {
+  await exigirFinanceiro();
   const ref = adminDb.collection(COLECOES.contratos).doc(contratoId);
   const doc = await ref.get();
   if (!doc.exists) return;
@@ -195,6 +203,7 @@ export async function marcarParcelaPaga(contratoId: string, indiceParcela: numbe
 
 /** Lista contratos confirmados para a tela de Logística, ordenados pela data de retirada. */
 export async function listarContratosLogistica(): Promise<ContratoComId[]> {
+  await exigirUsuario();
   const todos = await listarTodosContratos();
   return todos
     .filter((c) => c.status === "CONFIRMADO")
@@ -202,11 +211,13 @@ export async function listarContratosLogistica(): Promise<ContratoComId[]> {
 }
 
 export async function marcarSaida(id: string, saidaEntregue: boolean) {
+  await exigirUsuario();
   await adminDb.collection(COLECOES.contratos).doc(id).update({ saidaEntregue });
   revalidatePath("/logistica");
 }
 
 export async function marcarRetorno(id: string, itensDevolvidos: boolean) {
+  await exigirUsuario();
   await adminDb.collection(COLECOES.contratos).doc(id).update({ itensDevolvidos });
   revalidatePath("/logistica");
 }
@@ -217,6 +228,7 @@ export async function marcarRetorno(id: string, itensDevolvidos: boolean) {
  * em si nunca mudam por aqui, só os dados de entrada do cálculo).
  */
 export async function atualizarContratoFinanceiro(id: string, dados: { custos: number; tipoServico: TipoServico }) {
+  await exigirFinanceiro();
   await adminDb.collection(COLECOES.contratos).doc(id).update(dados);
   revalidatePath("/rateio");
   revalidatePath(`/contratos/${id}`);
@@ -224,6 +236,7 @@ export async function atualizarContratoFinanceiro(id: string, dados: { custos: n
 
 /** Lista contratos fechados (CONFIRMADO/CONCLUIDO) para a tela de Rateio. */
 export async function listarContratosFechados(): Promise<ContratoComId[]> {
+  await exigirFinanceiro();
   const todos = await listarTodosContratos();
   return todos
     .filter((c) => c.status === "CONFIRMADO" || c.status === "CONCLUIDO")

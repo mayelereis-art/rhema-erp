@@ -1,5 +1,6 @@
 "use server";
 
+import { exigirFinanceiro } from "./sessao-servidor";
 import { revalidatePath } from "next/cache";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
@@ -15,6 +16,7 @@ export interface DespesaComId {
 }
 
 export async function listarDespesas(): Promise<DespesaComId[]> {
+  await exigirFinanceiro();
   const snap = await adminDb.collection(COLECOES.despesas).orderBy("vencimento", "asc").get();
   return snap.docs.map((doc) => {
     const d = doc.data();
@@ -36,6 +38,7 @@ export interface DadosDespesa {
 }
 
 export async function criarDespesa(dados: DadosDespesa) {
+  await exigirFinanceiro();
   await adminDb.collection(COLECOES.despesas).add({
     descricao: dados.descricao,
     vencimento: Timestamp.fromDate(new Date(dados.vencimento)),
@@ -47,11 +50,13 @@ export async function criarDespesa(dados: DadosDespesa) {
 }
 
 export async function marcarDespesaPaga(id: string, pago: boolean) {
+  await exigirFinanceiro();
   await adminDb.collection(COLECOES.despesas).doc(id).update({ pago });
   revalidatePath("/financeiro");
 }
 
 export async function excluirDespesa(id: string) {
+  await exigirFinanceiro();
   await adminDb.collection(COLECOES.despesas).doc(id).delete();
   revalidatePath("/financeiro");
 }

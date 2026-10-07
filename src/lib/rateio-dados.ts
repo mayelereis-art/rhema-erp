@@ -1,5 +1,6 @@
 "use server";
 
+import { exigirFinanceiro } from "./sessao-servidor";
 import { listarContratosFechados } from "./contratos";
 import { calcularRateio, type Destinatario, type TipoServico as TipoServicoLower } from "./rateio";
 import type { TipoServico } from "./firestore-schema";
@@ -20,6 +21,7 @@ export interface LinhaRateio {
 
 /** Acumula o rateio de todos os contratos fechados (CONFIRMADO/CONCLUIDO). */
 export async function listarRateioContratos(nomeCliente: Record<string, string>): Promise<LinhaRateio[]> {
+  await exigirFinanceiro();
   const contratos = await listarContratosFechados();
   return contratos.map((c) => {
     const total = c.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);

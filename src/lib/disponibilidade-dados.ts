@@ -1,5 +1,6 @@
 "use server";
 
+import { exigirUsuario } from "./sessao-servidor";
 import { adminDb } from "./firebase-admin";
 import { COLECOES } from "./firestore-schema";
 import { calcularLivre, type ContratoPeriodo } from "./disponibilidade";
@@ -36,6 +37,7 @@ export async function consultarDisponibilidade(
   fimISO: string,
   ignorarContratoId?: string
 ): Promise<LinhaDisponibilidade[]> {
+  await exigirUsuario();
   const inicio = new Date(inicioISO);
   const fim = new Date(fimISO);
 
@@ -68,6 +70,7 @@ export async function obterLivreProduto(
   fimISO: string,
   ignorarContratoId?: string
 ): Promise<number> {
+  await exigirUsuario();
   const contratos = await buscarContratosPeriodo();
   return calcularLivre(estoqueTotal, contratos, produtoId, new Date(inicioISO), new Date(fimISO), ignorarContratoId);
 }

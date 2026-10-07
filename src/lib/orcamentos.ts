@@ -1,10 +1,12 @@
 "use server";
 
+import { exigirUsuario } from "./sessao-servidor";
 import { revalidatePath } from "next/cache";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
 import { COLECOES, type ItemContrato, type ModoLogistica, type StatusOrcamento, type TipoServico } from "./firestore-schema";
 import { criarContrato } from "./contratos";
+import { gravarNovoOrcamento, type DadosOrcamento } from "./orcamentos-gravacao";
 
 export interface OrcamentoComId {
   id: string;
@@ -47,75 +49,32 @@ function serializar(id: string, d: FirebaseFirestore.DocumentData): OrcamentoCom
 }
 
 export async function listarOrcamentos(statusFiltro?: StatusOrcamento): Promise<OrcamentoComId[]> {
+  await exigirUsuario();
   const snap = await adminDb.collection(COLECOES.orcamentos).get();
   const todos = snap.docs.map((doc) => serializar(doc.id, doc.data()));
   return todos.filter((o) => !statusFiltro || o.status === statusFiltro).sort((a, b) => b.numero - a.numero);
 }
 
 export async function listarOrcamentosPorCliente(clienteId: string): Promise<OrcamentoComId[]> {
+  await exigirUsuario();
   const snap = await adminDb.collection(COLECOES.orcamentos).where("clienteId", "==", clienteId).get();
   return snap.docs.map((doc) => serializar(doc.id, doc.data())).sort((a, b) => b.numero - a.numero);
 }
 
 export async function obterOrcamento(id: string): Promise<OrcamentoComId | null> {
+  await exigirUsuario();
   const doc = await adminDb.collection(COLECOES.orcamentos).doc(id).get();
   if (!doc.exists) return null;
   return serializar(doc.id, doc.data()!);
 }
 
-async function proximoNumero(): Promise<number> {
-  const ref = adminDb.collection(COLECOES.contadores).doc("orcamentos");
-  return adminDb.runTransaction(async (tx) => {
-    const doc = await tx.get(ref);
-    const ultimo = doc.exists ? (doc.data()!.ultimo as number) : 0;
-    const proximo = ultimo + 1;
-    tx.set(ref, { ultimo: proximo }, { merge: true });
-    return proximo;
-  });
-}
+export type { DadosOrcamento };
 
-export interface DadosOrcamento {
-  clienteId: string;
-  evento: string;
-  inicio: string; // ISO
-  fim: string;
-  tipoServico: TipoServico;
-  custos: number;
-  desconto?: number;
-  executoraId?: string;
-  modoLogistica: ModoLogistica;
-  endereco?: string;
-  itens: ItemContrato[];
-}
-
-/**
- * Orçamento não reserva estoque — é só uma proposta de preço, igual ao modelo
- * que a Rhema já usava ("Estas datas não interferem na reserva de estoque").
- * A checagem de disponibilidade só acontece ao converter em contrato.
- */
 export async function criarOrcamento(dados: DadosOrcamento): Promise<{ id: string }> {
-  const numero = await proximoNumero();
-
-  const ref = await adminDb.collection(COLECOES.orcamentos).add({
-    numero,
-    clienteId: dados.clienteId,
-    evento: dados.evento,
-    inicio: Timestamp.fromDate(new Date(dados.inicio)),
-    fim: Timestamp.fromDate(new Date(dados.fim)),
-    status: "PENDENTE",
-    tipoServico: dados.tipoServico,
-    custos: dados.custos,
-    desconto: dados.desconto ?? 0,
-    executoraId: dados.executoraId ?? null,
-    modoLogistica: dados.modoLogistica,
-    endereco: dados.endereco ?? null,
-    itens: dados.itens,
-    contratoId: null,
-    criadoEm: Timestamp.now(),
-  });
-
+  await exigirUsuario();
+  const { id } = await gravarNovoOrcamento(dados);
   revalidatePath("/orcamentos");
-  return { id: ref.id };
+  return { id };
 }
 
 /** Edita um orçamento ainda PENDENTE (convertidos/cancelados são histórico). */
@@ -123,6 +82,7 @@ export async function atualizarOrcamento(
   id: string,
   dados: DadosOrcamento
 ): Promise<{ ok: true } | { ok: false; erro: string }> {
+  await exigirUsuario();
   const atual = await obterOrcamento(id);
   if (!atual) return { ok: false, erro: "Orçamento não encontrado." };
   if (atual.status !== "PENDENTE") return { ok: false, erro: "Só é possível editar orçamentos pendentes." };
@@ -147,6 +107,7 @@ export async function atualizarOrcamento(
 }
 
 export async function cancelarOrcamento(id: string) {
+  await exigirUsuario();
   await adminDb.collection(COLECOES.orcamentos).doc(id).update({ status: "CANCELADO" });
   revalidatePath("/orcamentos");
   revalidatePath(`/orcamentos/${id}`);
@@ -160,6 +121,7 @@ export async function cancelarOrcamento(id: string) {
 export async function converterEmContrato(
   id: string
 ): Promise<{ ok: true; contratoId: string } | { ok: false; erro: string }> {
+  await exigirUsuario();
   const orcamento = await obterOrcamento(id);
   if (!orcamento) return { ok: false, erro: "Orçamento não encontrado." };
   if (orcamento.status !== "PENDENTE") return { ok: false, erro: "Este orçamento já foi convertido ou cancelado." };

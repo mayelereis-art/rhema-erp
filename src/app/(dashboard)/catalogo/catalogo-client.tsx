@@ -6,19 +6,7 @@ import { storage } from "@/lib/firebase-client";
 import { atualizarProduto, criarProduto, excluirProduto, type DadosProduto } from "@/lib/produtos";
 import { calcularLocacoesParaRecuperar, calcularPrecoSugerido, PERCENTUAL_RECUPERACAO_PADRAO } from "@/lib/precificacao";
 import type { Categoria, Fornecedor, Produto } from "@/lib/firestore-schema";
-
-// Fotos de celular chegam a 5–10 MB; redimensionar antes do upload deixa o
-// envio e o carregamento das páginas muito mais rápidos.
-async function comprimirImagem(arquivo: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(arquivo);
-  const maxLado = 1200;
-  const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * escala);
-  canvas.height = Math.round(bitmap.height * escala);
-  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ?? arquivo), "image/jpeg", 0.82));
-}
+import { comprimirImagem } from "@/lib/imagem-cliente";
 
 const VAZIO: DadosProduto = {
   nome: "",

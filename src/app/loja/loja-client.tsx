@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Categoria, Produto } from "@/lib/firestore-schema";
-import { solicitarOrcamentoPublico } from "@/lib/loja";
+import type { Categoria } from "@/lib/firestore-schema";
+import { solicitarOrcamentoPublico, type ProdutoPublico as Produto } from "@/lib/loja";
 
 const NUMERO_WHATSAPP = process.env.NEXT_PUBLIC_WHATSAPP_NUMERO ?? "";
 

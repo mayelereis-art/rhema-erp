@@ -1,5 +1,6 @@
 "use server";
 
+import { exigirUsuario } from "./sessao-servidor";
 import { revalidatePath } from "next/cache";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
@@ -8,6 +9,7 @@ import { COLECOES, type Cliente } from "./firestore-schema";
 // `criadoEm` é um Timestamp do Admin SDK — não é serializável ao atravessar a
 // fronteira servidor/cliente do React, então é descartado aqui (a UI não usa).
 export async function listarClientes(): Promise<Cliente[]> {
+  await exigirUsuario();
   const snap = await adminDb.collection(COLECOES.clientes).orderBy("nome").get();
   return snap.docs.map((doc) => {
     const { criadoEm, ...resto } = doc.data();
@@ -17,6 +19,7 @@ export async function listarClientes(): Promise<Cliente[]> {
 }
 
 export async function obterCliente(id: string): Promise<Cliente | null> {
+  await exigirUsuario();
   const doc = await adminDb.collection(COLECOES.clientes).doc(id).get();
   if (!doc.exists) return null;
   const { criadoEm, ...resto } = doc.data()!;
@@ -34,6 +37,7 @@ export interface DadosCliente {
 }
 
 export async function criarCliente(dados: DadosCliente) {
+  await exigirUsuario();
   const ref = adminDb.collection(COLECOES.clientes).doc();
   await ref.set({ ...dados, criadoEm: Timestamp.now() });
   revalidatePath("/clientes");
@@ -42,11 +46,13 @@ export async function criarCliente(dados: DadosCliente) {
 }
 
 export async function atualizarCliente(id: string, dados: DadosCliente) {
+  await exigirUsuario();
   await adminDb.collection(COLECOES.clientes).doc(id).update({ ...dados });
   revalidatePath("/clientes");
 }
 
 export async function excluirCliente(id: string) {
+  await exigirUsuario();
   await adminDb.collection(COLECOES.clientes).doc(id).delete();
   revalidatePath("/clientes");
 }
