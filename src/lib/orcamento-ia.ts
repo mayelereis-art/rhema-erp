@@ -107,6 +107,13 @@ export type ResultadoAnalise =
   | { ok: true; analise: AnaliseDecoracao }
   | { ok: false; codigo: "IA_NAO_CONFIGURADA" | "DADOS_INVALIDOS" | "FALHA_IA"; mensagem: string };
 
+function descreverErroApi(erro: InstanceType<typeof Anthropic.APIError>): string {
+  const corpo = erro.error as { error?: { type?: string; message?: string } } | undefined;
+  const tipo = corpo?.error?.type ?? "";
+  const mensagem = (corpo?.error?.message ?? "").slice(0, 200);
+  return [tipo, mensagem].filter(Boolean).join(": ");
+}
+
 async function lerFoto(caminho: string): Promise<string> {
   const [buffer] = await adminBucket().file(caminho).download();
   return buffer.toString("base64");
@@ -207,8 +214,19 @@ export async function analisarDecoracao(dadosBrutos: DadosPedidoAnalise): Promis
     if (erro instanceof Anthropic.RateLimitError) {
       return { ok: false, codigo: "FALHA_IA", mensagem: "Limite de uso da IA atingido. Aguarde alguns minutos." };
     }
-    // Mensagem genérica: detalhes do erro podem conter dados da requisição.
-    console.error("Falha na análise da IA:", erro instanceof Anthropic.APIError ? erro.status : "erro inesperado");
-    return { ok: false, codigo: "FALHA_IA", mensagem: "A IA está indisponível no momento. Tente novamente em instantes." };
+    // Só o código e o tipo/mensagem do erro da API (nunca a chave nem o corpo
+    // da requisição), para dar para diagnosticar sem acesso aos logs.
+    const detalhe =
+      erro instanceof Anthropic.APIError
+        ? `${erro.status ?? "?"} ${descreverErroApi(erro)}`
+        : erro instanceof Error
+          ? erro.name
+          : "erro inesperado";
+    console.error("Falha na análise da IA:", detalhe);
+    return {
+      ok: false,
+      codigo: "FALHA_IA",
+      mensagem: `A IA está indisponível no momento. Tente novamente em instantes. (detalhe técnico: ${detalhe})`,
+    };
   }
 }
