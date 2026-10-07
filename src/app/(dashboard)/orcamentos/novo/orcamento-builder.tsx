@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Cliente, ItemContrato, ModoLogistica, Produto, TipoServico, Usuario } from "@/lib/firestore-schema";
 import { criarCliente } from "@/lib/clientes";
 import { atualizarOrcamento, criarOrcamento, type OrcamentoComId } from "@/lib/orcamentos";
-import { calcularRateio, gerarParcelas } from "@/lib/rateio";
+import { gerarParcelas } from "@/lib/rateio";
+import { calcularValores } from "@/lib/valores-documento";
 import { CalculadoraCustoPresencial } from "../../calculadora-custo-presencial";
 
 function hoje() {
@@ -48,8 +49,21 @@ export function OrcamentoBuilder({
 
   const total = useMemo(() => itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), [itens]);
   const valorMontagem = tipoServico === "PRESENCIAL" ? custos : 0;
-  const valorFaturado = Math.max(0, total + valorMontagem - desconto);
-  const rateio = useMemo(() => calcularRateio(total, custos, MAPA_TIPO[tipoServico], desconto), [total, custos, tipoServico, desconto]);
+  // Itens avulsos de um Orçamento Inteligente não são editados aqui, mas são
+  // preservados ao salvar e entram no total e no rateio.
+  const avulsos = inicial?.itensAvulsos ?? [];
+  const valores = calcularValores({
+    tipoServico,
+    itens,
+    itensAvulsos: avulsos,
+    custos,
+    custosInternos: inicial?.custosInternos,
+    desconto,
+    baseRateio: inicial?.baseRateio,
+  });
+  const totalAvulsos = valores.totalAvulsos;
+  const valorFaturado = valores.valorTotal;
+  const rateio = valores.rateio;
   const parcelas = useMemo(
     () => (valorFaturado > 0 ? gerarParcelas(valorFaturado, inicio, fim) : []),
     [valorFaturado, inicio, fim]
@@ -290,6 +304,12 @@ export function OrcamentoBuilder({
             <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
               <span>Valor da montagem</span>
               <strong>R$ {valorMontagem.toFixed(2)}</strong>
+            </div>
+          )}
+          {totalAvulsos > 0 && (
+            <div style={{ fontSize: 13, display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+              <span>Itens avulsos ({avulsos.length}) — mantidos</span>
+              <strong>R$ {totalAvulsos.toFixed(2)}</strong>
             </div>
           )}
           {desconto > 0 && (

@@ -4,9 +4,10 @@ import { exigirFinanceiro, exigirUsuario } from "./sessao-servidor";
 import { revalidatePath } from "next/cache";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
-import { COLECOES, type Contrato, type ItemContrato, type ModoLogistica, type StatusContrato, type TipoServico } from "./firestore-schema";
+import { COLECOES, type Contrato, type ItemAvulso, type ItemContrato, type ModoLogistica, type StatusContrato, type TipoServico } from "./firestore-schema";
 import { calcularLivre, type ContratoPeriodo } from "./disponibilidade";
 import { gerarParcelasComSinal } from "./rateio";
+import { calcularValores, type BaseRateio } from "./valores-documento";
 
 export interface ContratoComId extends Omit<Contrato, "inicio" | "fim" | "criadoEm" | "parcelas"> {
   inicio: string; // ISO
@@ -40,6 +41,9 @@ function serializar(id: string, d: FirebaseFirestore.DocumentData): ContratoComI
       pago: p.pago,
     })),
     criadoEm: d.criadoEm.toDate().toISOString(),
+    itensAvulsos: d.itensAvulsos ?? [],
+    custosInternos: d.custosInternos ?? 0,
+    baseRateio: d.baseRateio ?? undefined,
   };
 }
 
@@ -104,6 +108,9 @@ export interface DadosContrato {
   modoLogistica: ModoLogistica;
   endereco?: string;
   itens: ItemContrato[];
+  itensAvulsos?: ItemAvulso[];
+  custosInternos?: number;
+  baseRateio?: BaseRateio;
 }
 
 export interface ErroDisponibilidade {
@@ -145,13 +152,12 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
   if (erros.length > 0) return { ok: false, erros };
 
   const numero = await proximoNumero();
-  const total = dados.itens.reduce((soma, i) => soma + i.quantidade * i.precoUnitario, 0);
   // Na modalidade presencial, o valor de montagem (custos) é cobrado do cliente
   // junto da locação — ver Cláusula 4 do contrato. No Pegue&Monte não há serviço
-  // de montagem cobrado, então as parcelas cobrem só os itens.
+  // de montagem cobrado. Itens avulsos (Orçamento Inteligente) também entram.
   const desconto = dados.desconto ?? 0;
-  const valorFaturado = Math.max(0, total + (dados.tipoServico === "PRESENCIAL" ? dados.custos : 0) - desconto);
-  const parcelas = gerarParcelasComSinal(valorFaturado, dados.inicio, dados.fim, dados.sinalPago ?? 0);
+  const { valorTotal } = calcularValores(dados);
+  const parcelas = gerarParcelasComSinal(valorTotal, dados.inicio, dados.fim, dados.sinalPago ?? 0);
 
   const ref = await adminDb.collection(COLECOES.contratos).add({
     numero,
@@ -169,6 +175,11 @@ export async function criarContrato(dados: DadosContrato): Promise<{ ok: true; i
     saidaEntregue: false,
     itensDevolvidos: false,
     itens: dados.itens,
+    // Só grava os campos do Orçamento Inteligente quando existem, para
+    // contratos comuns continuarem com exatamente o mesmo formato de antes.
+    ...(dados.itensAvulsos?.length ? { itensAvulsos: dados.itensAvulsos } : {}),
+    ...(dados.custosInternos ? { custosInternos: dados.custosInternos } : {}),
+    ...(dados.baseRateio ? { baseRateio: dados.baseRateio } : {}),
     parcelas: parcelas.map((p) => ({
       rotulo: p.rotulo,
       vencimento: Timestamp.fromDate(new Date(p.vencimento)),

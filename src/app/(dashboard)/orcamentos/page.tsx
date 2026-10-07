@@ -3,6 +3,7 @@ import { PageHeader } from "../page-header";
 import { listarOrcamentos } from "@/lib/orcamentos";
 import { listarClientes } from "@/lib/clientes";
 import type { StatusOrcamento } from "@/lib/firestore-schema";
+import { formatarData } from "@/lib/datas";
 
 const ROTULO_STATUS: Record<StatusOrcamento, string> = {
   PENDENTE: "Pendente",
@@ -75,7 +76,7 @@ export default async function OrcamentosPage({
                   <td style={td}>{nomeCliente.get(o.clienteId) ?? "—"}</td>
                   <td style={td}>{o.evento}</td>
                   <td style={td}>
-                    {new Date(o.inicio).toLocaleDateString("pt-BR")} – {new Date(o.fim).toLocaleDateString("pt-BR")}
+                    {formatarData(o.inicio)} – {formatarData(o.fim)}
                   </td>
                   <td style={td}>
                     <span style={{ color: COR_STATUS[o.status], fontWeight: 600 }}>{ROTULO_STATUS[o.status]}</span>

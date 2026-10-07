@@ -3,7 +3,7 @@
 // criarOrcamento autenticado e o formulário público da loja (que valida com zod).
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
-import { COLECOES, type ItemContrato, type ModoLogistica, type TipoServico } from "./firestore-schema";
+import { COLECOES, type ItemContrato, type ModoLogistica, type Orcamento, type TipoServico } from "./firestore-schema";
 
 export interface DadosOrcamento {
   clienteId: string;
@@ -35,7 +35,11 @@ async function proximoNumero(): Promise<number> {
  * que a Rhema já usava ("Estas datas não interferem na reserva de estoque").
  * A checagem de disponibilidade só acontece ao converter em contrato.
  */
-export async function gravarNovoOrcamento(dados: DadosOrcamento): Promise<{ id: string; numero: number }> {
+export async function gravarNovoOrcamento(
+  dados: DadosOrcamento,
+  // Campos opcionais do Orçamento Inteligente (Orcamento em firestore-schema.ts).
+  extras: Partial<Pick<Orcamento, "horario" | "local" | "cidade" | "convidados" | "tema" | "itensAvulsos" | "custosInternos" | "baseRateio" | "origem" | "analiseIA">> = {}
+): Promise<{ id: string; numero: number }> {
   const numero = await proximoNumero();
 
   const ref = await adminDb.collection(COLECOES.orcamentos).add({
@@ -54,6 +58,7 @@ export async function gravarNovoOrcamento(dados: DadosOrcamento): Promise<{ id: 
     itens: dados.itens,
     contratoId: null,
     criadoEm: Timestamp.now(),
+    ...extras,
   });
 
   return { id: ref.id, numero };

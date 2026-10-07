@@ -4,10 +4,8 @@ import { obterContrato } from "@/lib/contratos";
 import { obterCliente } from "@/lib/clientes";
 import { listarProdutos } from "@/lib/produtos";
 import { listarUsuarios } from "@/lib/usuarios";
-import { calcularRateio } from "@/lib/rateio";
+import { calcularValores } from "@/lib/valores-documento";
 import { ContratoDetalheClient } from "./contrato-detalhe-client";
-
-const MAPA_TIPO = { PRESENCIAL: "presencial", PEGMONTE: "pegmonte" } as const;
 
 export default async function ContratoDetalhePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,8 +22,9 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   );
   const nomeAtendente = usuarios.find((u) => u.id === contrato.executoraId)?.nome;
 
-  const total = contrato.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
-  const rateio = calcularRateio(total, contrato.custos, MAPA_TIPO[contrato.tipoServico], contrato.desconto);
+  const valores = calcularValores(contrato);
+  const total = valores.totalItens;
+  const rateio = valores.rateio;
 
   return (
     <>

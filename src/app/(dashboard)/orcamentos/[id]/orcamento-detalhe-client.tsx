@@ -8,6 +8,7 @@ import { cancelarOrcamento, converterEmContrato } from "@/lib/orcamentos";
 import type { ResultadoRateio } from "@/lib/rateio";
 import { EMPRESA } from "@/lib/empresa";
 import { rotuloModalidade } from "@/lib/contrato-clausulas";
+import { formatarData, formatarDataHora } from "@/lib/datas";
 
 const ROTULO_STATUS: Record<string, string> = {
   PENDENTE: "Pendente",
@@ -34,7 +35,8 @@ export function OrcamentoDetalheClient({
   const [pendente, iniciar] = useTransition();
   const valorMontagem = orcamento.tipoServico === "PRESENCIAL" ? orcamento.custos : 0;
   const desconto = orcamento.desconto ?? 0;
-  const valorTotalOrcamento = Math.max(0, total + valorMontagem - desconto);
+  const totalAvulsos = orcamento.itensAvulsos.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
+  const valorTotalOrcamento = Math.max(0, total + totalAvulsos + valorMontagem - desconto);
 
   function cancelar() {
     if (!confirm("Cancelar este orçamento?")) return;
@@ -115,11 +117,11 @@ export function OrcamentoDetalheClient({
             <strong>Atendente:</strong> {nomeAtendente ?? "—"}
           </div>
           <div>
-            <strong>Data do orçamento:</strong> {new Date(orcamento.criadoEm).toLocaleDateString("pt-BR")}
+            <strong>Data do orçamento:</strong> {formatarDataHora(orcamento.criadoEm)}
           </div>
           <div>
-            <strong>Início / término da locação:</strong> {new Date(orcamento.inicio).toLocaleDateString("pt-BR")} —{" "}
-            {new Date(orcamento.fim).toLocaleDateString("pt-BR")}
+            <strong>Início / término da locação:</strong> {formatarData(orcamento.inicio)} —{" "}
+            {formatarData(orcamento.fim)}
           </div>
           <div>
             <strong>Tipo:</strong> {orcamento.modoLogistica === "ENTREGA" ? "Entrega no local" : "Retirar na loja"}
@@ -127,6 +129,25 @@ export function OrcamentoDetalheClient({
           {orcamento.modoLogistica === "ENTREGA" && (
             <div>
               <strong>Endereço de entrega:</strong> {orcamento.endereco ?? "—"}
+            </div>
+          )}
+          {orcamento.tema && (
+            <div>
+              <strong>Tema:</strong> {orcamento.tema}
+            </div>
+          )}
+          {(orcamento.horario || orcamento.convidados) && (
+            <div>
+              {orcamento.horario && (
+                <>
+                  <strong>Horário:</strong> {orcamento.horario}{" "}
+                </>
+              )}
+              {orcamento.convidados ? (
+                <>
+                  <strong>Convidados:</strong> {orcamento.convidados}
+                </>
+              ) : null}
             </div>
           )}
         </div>
@@ -167,6 +188,19 @@ export function OrcamentoDetalheClient({
                 </tr>
               );
             })}
+            {orcamento.itensAvulsos.map((a) => (
+              <tr key={a.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                <td style={{ padding: "6px 0" }}>
+                  {a.descricao}
+                  {a.tipo !== "ITEM" && (
+                    <div style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>{a.tipo === "CONSUMIVEL" ? "Material de consumo" : "Personalizado"}</div>
+                  )}
+                </td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>{a.quantidade}</td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {a.precoUnitario.toFixed(2)}</td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(a.quantidade * a.precoUnitario).toFixed(2)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
@@ -176,6 +210,12 @@ export function OrcamentoDetalheClient({
               <span>Valor da locação</span>
               <strong>R$ {total.toFixed(2)}</strong>
             </div>
+            {totalAvulsos > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                <span>Materiais e itens personalizados</span>
+                <strong>R$ {totalAvulsos.toFixed(2)}</strong>
+              </div>
+            )}
             {valorMontagem > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
                 <span>Valor do serviço de montagem</span>

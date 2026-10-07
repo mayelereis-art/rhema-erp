@@ -2,10 +2,9 @@
 
 import { exigirFinanceiro } from "./sessao-servidor";
 import { listarContratosFechados } from "./contratos";
-import { calcularRateio, type Destinatario, type TipoServico as TipoServicoLower } from "./rateio";
+import type { Destinatario } from "./rateio";
 import type { TipoServico } from "./firestore-schema";
-
-const MAPA_TIPO: Record<TipoServico, TipoServicoLower> = { PRESENCIAL: "presencial", PEGMONTE: "pegmonte" };
+import { calcularValores } from "./valores-documento";
 
 export interface LinhaRateio {
   contratoId: string;
@@ -24,8 +23,9 @@ export async function listarRateioContratos(nomeCliente: Record<string, string>)
   await exigirFinanceiro();
   const contratos = await listarContratosFechados();
   return contratos.map((c) => {
-    const total = c.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
-    const resultado = calcularRateio(total, c.custos, MAPA_TIPO[c.tipoServico], c.desconto);
+    const v = calcularValores(c);
+    const resultado = v.rateio;
+    const total = c.baseRateio ? v.totalItens + v.totalAvulsos + v.valorMontagem : v.totalItens;
     return {
       contratoId: c.id,
       numero: c.numero,

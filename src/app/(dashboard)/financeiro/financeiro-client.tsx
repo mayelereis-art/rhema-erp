@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { marcarParcelaPaga } from "@/lib/contratos";
 import { criarDespesa, excluirDespesa, marcarDespesaPaga, type DespesaComId } from "@/lib/despesas";
+import { formatarData } from "@/lib/datas";
 
 interface ParcelaLinha {
   contratoId: string;
@@ -91,7 +92,7 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
                   <td style={tdCompacto}>
                     <Link href={`/contratos/${p.contratoId}`}>#{p.numero}</Link> · {p.cliente}
                     <div style={{ color: "var(--ink-soft)", fontSize: 11.5 }}>
-                      {p.rotulo} — venc. {new Date(p.vencimento).toLocaleDateString("pt-BR")}
+                      {p.rotulo} — venc. {formatarData(p.vencimento)}
                     </div>
                   </td>
                   <td style={{ ...tdCompacto, textAlign: "right" }}>R$ {p.valor.toFixed(2)}</td>
@@ -145,7 +146,7 @@ export function FinanceiroClient({ aReceber, despesas }: { aReceber: ParcelaLinh
                 <tr key={d.id} style={{ borderTop: "1px solid var(--line)" }}>
                   <td style={tdCompacto}>
                     {d.descricao}
-                    <div style={{ color: "var(--ink-soft)", fontSize: 11.5 }}>venc. {new Date(d.vencimento).toLocaleDateString("pt-BR")}</div>
+                    <div style={{ color: "var(--ink-soft)", fontSize: 11.5 }}>venc. {formatarData(d.vencimento)}</div>
                   </td>
                   <td style={{ ...tdCompacto, textAlign: "right" }}>R$ {d.valor.toFixed(2)}</td>
                   <td style={{ ...tdCompacto, textAlign: "right" }}>

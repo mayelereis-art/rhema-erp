@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import Link from "next/link";
 import type { ContratoComId } from "@/lib/contratos";
 import { marcarRetorno, marcarSaida } from "@/lib/contratos";
+import { formatarData } from "@/lib/datas";
 
 export function LogisticaClient({ contratos, nomeCliente }: { contratos: ContratoComId[]; nomeCliente: Record<string, string> }) {
   const [pendente, iniciar] = useTransition();
@@ -35,7 +36,7 @@ export function LogisticaClient({ contratos, nomeCliente }: { contratos: Contrat
                 <td style={td}>{c.modoLogistica === "ENTREGA" ? "Entrega" : "Retirada"}</td>
                 <td style={td}>{c.endereco ?? "Casa da Maiele"}</td>
                 <td style={td}>
-                  {new Date(c.inicio).toLocaleDateString("pt-BR")} – {new Date(c.fim).toLocaleDateString("pt-BR")}
+                  {formatarData(c.inicio)} – {formatarData(c.fim)}
                   {emAtraso && <div style={{ color: "var(--rose-deep)", fontWeight: 700, fontSize: 11.5 }}>⚠ Devolução em atraso</div>}
                 </td>
                 <td style={td}>

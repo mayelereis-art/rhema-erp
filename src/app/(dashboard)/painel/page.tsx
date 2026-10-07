@@ -6,6 +6,7 @@ import { listarClientes } from "@/lib/clientes";
 import { listarDespesas } from "@/lib/despesas";
 import { listarProdutos } from "@/lib/produtos";
 import { obterSessao } from "@/lib/sessao-servidor";
+import { formatarData } from "@/lib/datas";
 
 export default async function PainelPage() {
   const sessao = await obterSessao();
@@ -37,7 +38,10 @@ export default async function PainelPage() {
   const orcamentosPendentes = orcamentos.filter((o) => o.status === "PENDENTE");
   const valorOrcamentosPendentes = orcamentosPendentes.reduce(
     (s, o) =>
-      s + o.itens.reduce((si, i) => si + i.quantidade * i.precoUnitario, 0) + (o.tipoServico === "PRESENCIAL" ? o.custos : 0),
+      s +
+      o.itens.reduce((si, i) => si + i.quantidade * i.precoUnitario, 0) +
+      o.itensAvulsos.reduce((si, i) => si + i.quantidade * i.precoUnitario, 0) +
+      (o.tipoServico === "PRESENCIAL" ? o.custos : 0),
     0
   );
 
@@ -47,7 +51,8 @@ export default async function PainelPage() {
     .filter((c) => c.status !== "CANCELADO")
     .filter((c) => {
       const d = new Date(c.inicio);
-      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+      // datas de locação são gravadas como meia-noite UTC (ver src/lib/datas.ts)
+      return d.getUTCMonth() === mesAtual && d.getUTCFullYear() === anoAtual;
     })
     .reduce((s, c) => s + c.itens.reduce((si, i) => si + i.quantidade * i.precoUnitario, 0), 0);
 
@@ -87,7 +92,7 @@ export default async function PainelPage() {
                 <div>
                   <strong>#{c.numero}</strong> · {nomeCliente[c.clienteId] ?? "—"} — {c.evento}
                 </div>
-                <span style={{ color: "var(--ink-soft)" }}>{new Date(c.inicio).toLocaleDateString("pt-BR")}</span>
+                <span style={{ color: "var(--ink-soft)" }}>{formatarData(c.inicio)}</span>
               </Link>
             ))}
           </Secao>

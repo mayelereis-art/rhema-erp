@@ -4,7 +4,8 @@ import { exigirUsuario } from "./sessao-servidor";
 import { revalidatePath } from "next/cache";
 import { Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebase-admin";
-import { COLECOES, type ItemContrato, type ModoLogistica, type StatusOrcamento, type TipoServico } from "./firestore-schema";
+import { COLECOES, type ItemAvulso, type ItemContrato, type ModoLogistica, type StatusOrcamento, type TipoServico } from "./firestore-schema";
+import type { BaseRateio } from "./valores-documento";
 import { criarContrato } from "./contratos";
 import { gravarNovoOrcamento, type DadosOrcamento } from "./orcamentos-gravacao";
 
@@ -25,6 +26,15 @@ export interface OrcamentoComId {
   itens: ItemContrato[];
   contratoId?: string;
   criadoEm: string;
+  horario?: string;
+  local?: string;
+  cidade?: string;
+  convidados?: number;
+  tema?: string;
+  itensAvulsos: ItemAvulso[];
+  custosInternos: number;
+  baseRateio?: BaseRateio;
+  origem?: "ORCAMENTO_INTELIGENTE";
 }
 
 function serializar(id: string, d: FirebaseFirestore.DocumentData): OrcamentoComId {
@@ -45,6 +55,15 @@ function serializar(id: string, d: FirebaseFirestore.DocumentData): OrcamentoCom
     itens: d.itens ?? [],
     contratoId: d.contratoId,
     criadoEm: d.criadoEm.toDate().toISOString(),
+    horario: d.horario ?? undefined,
+    local: d.local ?? undefined,
+    cidade: d.cidade ?? undefined,
+    convidados: d.convidados ?? undefined,
+    tema: d.tema ?? undefined,
+    itensAvulsos: d.itensAvulsos ?? [],
+    custosInternos: d.custosInternos ?? 0,
+    baseRateio: d.baseRateio ?? undefined,
+    origem: d.origem ?? undefined,
   };
 }
 
@@ -138,6 +157,9 @@ export async function converterEmContrato(
     modoLogistica: orcamento.modoLogistica,
     endereco: orcamento.endereco,
     itens: orcamento.itens,
+    itensAvulsos: orcamento.itensAvulsos,
+    custosInternos: orcamento.custosInternos,
+    baseRateio: orcamento.baseRateio,
   });
 
   if (!resultado.ok) {

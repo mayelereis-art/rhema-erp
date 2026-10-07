@@ -4,6 +4,7 @@ import { PageHeader } from "../../page-header";
 import { obterCliente } from "@/lib/clientes";
 import { listarContratosPorCliente } from "@/lib/contratos";
 import { listarOrcamentosPorCliente } from "@/lib/orcamentos";
+import { formatarData } from "@/lib/datas";
 
 const ROTULO_STATUS_CONTRATO: Record<string, string> = {
   CONFIRMADO: "Confirmado",
@@ -51,7 +52,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
                     <td style={td}>#{c.numero}</td>
                     <td style={td}>{c.evento}</td>
                     <td style={td}>
-                      {new Date(c.inicio).toLocaleDateString("pt-BR")} – {new Date(c.fim).toLocaleDateString("pt-BR")}
+                      {formatarData(c.inicio)} – {formatarData(c.fim)}
                     </td>
                     <td style={td}>{ROTULO_STATUS_CONTRATO[c.status]}</td>
                     <td style={{ ...td, textAlign: "right" }}>R$ {total.toFixed(2)}</td>
@@ -95,7 +96,7 @@ export default async function ClienteDetalhePage({ params }: { params: Promise<{
                     <td style={td}>#{o.numero}</td>
                     <td style={td}>{o.evento}</td>
                     <td style={td}>
-                      {new Date(o.inicio).toLocaleDateString("pt-BR")} – {new Date(o.fim).toLocaleDateString("pt-BR")}
+                      {formatarData(o.inicio)} – {formatarData(o.fim)}
                     </td>
                     <td style={td}>{ROTULO_STATUS_ORCAMENTO[o.status]}</td>
                     <td style={{ ...td, textAlign: "right" }}>R$ {total.toFixed(2)}</td>

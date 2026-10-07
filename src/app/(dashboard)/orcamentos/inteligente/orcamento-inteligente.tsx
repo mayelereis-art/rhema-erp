@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { gerarOrcamentoInteligente } from "@/lib/orcamento-inteligente-gerar";
 import { deleteObject, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase-client";
 import { comprimirImagem } from "@/lib/imagem-cliente";
@@ -56,6 +58,9 @@ export function OrcamentoInteligente({
   const [livre, setLivre] = useState<Record<string, number> | null>(null);
   const [horas, setHoras] = useState({ producao: 0, montagem: 0, desmontagem: 0 });
   const [km, setKm] = useState(0);
+  const [gerando, iniciarGerar] = useTransition();
+  const [erroGerar, setErroGerar] = useState<string | null>(null);
+  const router = useRouter();
   const [erroEstoque, setErroEstoque] = useState(false);
 
   useEffect(() => {
@@ -140,6 +145,52 @@ export function OrcamentoInteligente({
         setComponentes(r.analise.componentes.map((c) => ({ ...c, materiais: [...c.materiais], ...SEM_PRECO })));
         setHoras(r.analise.horasEstimadas);
       }
+    });
+  }
+
+  const pendenciasGerar = [
+    !clienteId && "selecione o cliente",
+    !dataEvento && "informe a data do evento",
+    componentes?.length === 0 && "adicione itens",
+    componentes?.some((c) => !c.descricao.trim()) && "há item sem descrição",
+    componentes?.some((c) => !c.produtoId && c.precoUnitario <= 0) && "há item avulso sem preço de venda",
+  ].filter((p): p is string => Boolean(p));
+
+  function handleGerar() {
+    if (!componentes) return;
+    const avisoEstoque = "Itens sem estoque na data continuam no orçamento — confira antes de converter em contrato.";
+    if (!confirm(`Gerar o orçamento com ${componentes.length} item(ns)?\n\n${avisoEstoque}`)) return;
+    setErroGerar(null);
+    iniciarGerar(async () => {
+      const r = await gerarOrcamentoInteligente({
+        clienteId,
+        dataEvento,
+        horario,
+        local,
+        cidade,
+        convidados: convidados ? Number(convidados) : undefined,
+        tema,
+        descricao,
+        tipoServico,
+        horas,
+        km,
+        fotos: fotosProntas.map((f) => f.caminho!),
+        temaIA: resultado?.ok ? resultado.analise.tema : undefined,
+        linhas: componentes.map((c) => ({
+          descricao: c.descricao,
+          quantidade: c.quantidade,
+          tipo: c.tipo,
+          produtoId: c.produtoId,
+          custoUnitario: c.produtoId ? 0 : c.custoUnitario,
+          precoUnitario: c.produtoId ? 0 : c.precoUnitario,
+          precoManual: c.precoManual,
+          confianca: c.confianca,
+          confiancaPct: c.confiancaPct,
+          daIA: c.observacao !== OBS_MANUAL,
+        })),
+      });
+      if (r.ok) router.push(`/orcamentos/${r.id}`);
+      else setErroGerar(r.erro);
     });
   }
 
@@ -327,6 +378,22 @@ export function OrcamentoInteligente({
           horasDaIA={resultado?.ok === true}
         />
       )}
+
+      {componentes && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button className="btn btn-p" disabled={gerando || pendenciasGerar.length > 0} onClick={handleGerar}>
+            {gerando ? "Gerando..." : "Gerar orçamento"}
+          </button>
+          {pendenciasGerar.length > 0 ? (
+            <span style={{ fontSize: 12.5, color: "var(--rose-deep)" }}>Antes de gerar: {pendenciasGerar.join(" · ")}</span>
+          ) : (
+            <span style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>
+              O orçamento é criado como pendente, no layout de sempre. Não reserva estoque e pode ser editado depois.
+            </span>
+          )}
+        </div>
+      )}
+      {erroGerar && <Aviso cor="var(--rose-deep)">{erroGerar}</Aviso>}
     </div>
   );
 }

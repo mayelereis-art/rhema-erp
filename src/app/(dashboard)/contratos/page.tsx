@@ -3,6 +3,7 @@ import { PageHeader } from "../page-header";
 import { listarContratos } from "@/lib/contratos";
 import { listarClientes } from "@/lib/clientes";
 import type { StatusContrato } from "@/lib/firestore-schema";
+import { formatarData } from "@/lib/datas";
 
 const ROTULO_STATUS: Record<StatusContrato, string> = {
   CONFIRMADO: "Confirmado",
@@ -70,7 +71,7 @@ export default async function ContratosPage({
                   <td style={td}>{nomeCliente.get(c.clienteId) ?? "—"}</td>
                   <td style={td}>{c.evento}</td>
                   <td style={td}>
-                    {new Date(c.inicio).toLocaleDateString("pt-BR")} – {new Date(c.fim).toLocaleDateString("pt-BR")}
+                    {formatarData(c.inicio)} – {formatarData(c.fim)}
                   </td>
                   <td style={td}>
                     <span style={{ color: COR_STATUS[c.status], fontWeight: 600 }}>{ROTULO_STATUS[c.status]}</span>

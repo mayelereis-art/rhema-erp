@@ -7,6 +7,7 @@ import { atualizarStatusContrato, marcarParcelaPaga } from "@/lib/contratos";
 import type { ResultadoRateio } from "@/lib/rateio";
 import { EMPRESA } from "@/lib/empresa";
 import { obterClausulas, rotuloModalidade } from "@/lib/contrato-clausulas";
+import { formatarData, formatarDataHora } from "@/lib/datas";
 
 const PROXIMO_STATUS: Record<string, { status: string; rotulo: string } | undefined> = {
   CONFIRMADO: { status: "CONCLUIDO", rotulo: "Marcar como concluído" },
@@ -50,7 +51,9 @@ export function ContratoDetalheClient({
 
   const valorMontagem = contrato.tipoServico === "PRESENCIAL" ? contrato.custos : 0;
   const desconto = contrato.desconto ?? 0;
-  const valorTotalContrato = Math.max(0, total + valorMontagem - desconto);
+  const avulsos = contrato.itensAvulsos ?? [];
+  const totalAvulsos = avulsos.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
+  const valorTotalContrato = Math.max(0, total + totalAvulsos + valorMontagem - desconto);
   const linkWhatsApp = linkWhatsAppDoContrato(cliente?.telefone, contrato.numero, contrato.evento, valorTotalContrato);
   const valorTotalParcelas = contrato.parcelas.reduce((s, p) => s + p.valor, 0);
   const valorPago = contrato.parcelas.filter((p) => p.pago).reduce((s, p) => s + p.valor, 0);
@@ -118,11 +121,11 @@ export function ContratoDetalheClient({
             <strong>Atendente:</strong> {nomeAtendente ?? "—"}
           </div>
           <div>
-            <strong>Data do pedido:</strong> {new Date(contrato.criadoEm).toLocaleDateString("pt-BR")}
+            <strong>Data do pedido:</strong> {formatarDataHora(contrato.criadoEm)}
           </div>
           <div>
-            <strong>Início / término da locação:</strong> {new Date(contrato.inicio).toLocaleDateString("pt-BR")} —{" "}
-            {new Date(contrato.fim).toLocaleDateString("pt-BR")}
+            <strong>Início / término da locação:</strong> {formatarData(contrato.inicio)} —{" "}
+            {formatarData(contrato.fim)}
           </div>
           <div>
             <strong>Tipo:</strong> {contrato.modoLogistica === "ENTREGA" ? "Entrega no local" : "Retirar na loja"}
@@ -197,6 +200,20 @@ export function ContratoDetalheClient({
                 </tr>
               );
             })}
+            {avulsos.map((a) => (
+              <tr key={a.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                <td style={{ padding: "6px 0" }}>
+                  {a.descricao}
+                  <div style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>
+                    {a.tipo === "CONSUMIVEL" ? "Material de consumo" : a.tipo === "SERVICO" ? "Personalizado" : "Item fornecido para o evento"}
+                  </div>
+                </td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>{a.quantidade}</td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {a.precoUnitario.toFixed(2)}</td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>R$ {(a.quantidade * a.precoUnitario).toFixed(2)}</td>
+                <td style={{ padding: "6px 0", textAlign: "right" }}>{a.tipo === "CONSUMIVEL" ? "não se aplica" : "valor de mercado"}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
@@ -206,6 +223,12 @@ export function ContratoDetalheClient({
               <span>Valor da locação</span>
               <strong>R$ {total.toFixed(2)}</strong>
             </div>
+            {totalAvulsos > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+                <span>Materiais e itens personalizados</span>
+                <strong>R$ {totalAvulsos.toFixed(2)}</strong>
+              </div>
+            )}
             {valorMontagem > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
                 <span>Valor do serviço de montagem</span>
@@ -238,7 +261,7 @@ export function ContratoDetalheClient({
           {contrato.parcelas.map((p, idx) => (
             <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
               <span>
-                {p.rotulo} — venc. {new Date(p.vencimento).toLocaleDateString("pt-BR")}
+                {p.rotulo} — venc. {formatarData(p.vencimento)}
               </span>
               <span>
                 R$ {p.valor.toFixed(2)} {p.pago ? "✓ Pago" : ""}

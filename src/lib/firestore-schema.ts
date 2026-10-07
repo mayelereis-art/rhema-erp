@@ -116,6 +116,11 @@ export interface Contrato {
   itens: ItemContrato[];
   parcelas: Parcela[];
   criadoEm: Timestamp;
+
+  // Vindos de um Orçamento Inteligente convertido (opcionais; ver Orcamento).
+  itensAvulsos?: ItemAvulso[];
+  custosInternos?: number;
+  baseRateio?: "RECEITA_MENOS_CUSTOS";
 }
 
 // Orçamento NÃO reserva estoque (diferente de Contrato) — é só uma proposta de
@@ -148,6 +153,14 @@ export interface Orcamento {
   convidados?: number;
   tema?: string;
   itensAvulsos?: ItemAvulso[];
+  // Custos reais que não são cobrados como "serviço" (materiais, itens novos,
+  // uso de itens próprios, contingência…). Saem do lucro antes do rateio.
+  custosInternos?: number;
+  // Presente só em orçamentos do Orçamento Inteligente — ver valores-documento.ts.
+  baseRateio?: "RECEITA_MENOS_CUSTOS";
+  origem?: "ORCAMENTO_INTELIGENTE";
+  // Registro do que a IA sugeriu e do cálculo aprovado, para aprendizado futuro.
+  analiseIA?: Record<string, unknown>;
 }
 
 export type TipoItemAvulso = "ITEM" | "CONSUMIVEL" | "SERVICO";
