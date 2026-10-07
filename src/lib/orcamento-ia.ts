@@ -5,15 +5,7 @@ import { z } from "zod";
 import { adminBucket, adminDb } from "./firebase-admin";
 import { COLECOES } from "./firestore-schema";
 import { exigirUsuario } from "./sessao-servidor";
-
-// A integração com a Anthropic roda exclusivamente aqui no servidor. A chave
-// vem de ANTHROPIC_API_KEY (sem prefixo NEXT_PUBLIC_, então o Next nunca a
-// embute no bundle do navegador) e não é logada nem devolvida em resposta.
-const MODELO = "claude-opus-5";
-
-function iaConfigurada(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
-}
+import { criarClienteAnthropic, descreverErroIA, iaConfigurada, MODELO_IA as MODELO } from "./anthropic-cliente";
 
 export async function statusIA(): Promise<{ configurada: boolean }> {
   await exigirUsuario();
@@ -109,12 +101,6 @@ export type ResultadoAnalise =
   | { ok: true; analise: AnaliseDecoracao }
   | { ok: false; codigo: "IA_NAO_CONFIGURADA" | "DADOS_INVALIDOS" | "FALHA_IA"; mensagem: string };
 
-function descreverErroApi(erro: InstanceType<typeof Anthropic.APIError>): string {
-  const corpo = erro.error as { error?: { type?: string; message?: string } } | undefined;
-  const tipo = corpo?.error?.type ?? "";
-  const mensagem = (corpo?.error?.message ?? "").slice(0, 200);
-  return [tipo, mensagem].filter(Boolean).join(": ");
-}
 
 async function lerFoto(caminho: string): Promise<string> {
   const [buffer] = await adminBucket().file(caminho).download();
@@ -171,10 +157,7 @@ export async function analisarDecoracao(dadosBrutos: DadosPedidoAnalise): Promis
     .join("\n");
 
   try {
-    // Chaves criadas no nível da organização exigem o workspace no cabeçalho.
-    // O ID do workspace não é segredo; fica em ANTHROPIC_WORKSPACE_ID.
-    const workspace = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
-    const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
+    const client = criarClienteAnthropic();
     const resposta = await client.beta.messages.create({
       model: MODELO,
       max_tokens: 16000,
@@ -221,12 +204,7 @@ export async function analisarDecoracao(dadosBrutos: DadosPedidoAnalise): Promis
     }
     // Só o código e o tipo/mensagem do erro da API (nunca a chave nem o corpo
     // da requisição), para dar para diagnosticar sem acesso aos logs.
-    const detalhe =
-      erro instanceof Anthropic.APIError
-        ? `${erro.status ?? "?"} ${descreverErroApi(erro)}`
-        : erro instanceof Error
-          ? erro.name
-          : "erro inesperado";
+    const detalhe = descreverErroIA(erro);
     console.error("Falha na análise da IA:", detalhe);
     return {
       ok: false,

@@ -18,6 +18,9 @@ const LinhaSchema = z.object({
   custoUnitario: z.number().min(0).max(1_000_000).default(0),
   precoUnitario: z.number().min(0).max(1_000_000).default(0),
   precoManual: z.boolean().default(false),
+  origemCusto: z.enum(["MANUAL", "PESQUISA_MERCADO"]).optional(),
+  fonteUrl: z.string().url().max(2000).optional(),
+  dataPesquisa: z.string().datetime().optional(),
   confianca: z.enum(["ALTA", "MEDIA", "BAIXA"]).optional(),
   confiancaPct: z.number().optional(),
   daIA: z.boolean().default(false),
@@ -110,7 +113,9 @@ export async function gerarOrcamentoInteligente(
       custoUnitario:
         Math.round(l.custoUnitario * (l.tipo === "CONSUMIVEL" ? 1 + regras.perdasPct / 100 : 1) * 100) / 100,
       precoUnitario: l.precoUnitario,
-      origemPreco: "MANUAL" as const,
+      ...(l.origemCusto === "PESQUISA_MERCADO" && l.fonteUrl
+        ? { origemPreco: "PESQUISA_MERCADO" as const, fonteUrl: l.fonteUrl, ...(l.dataPesquisa ? { dataPesquisa: l.dataPesquisa } : {}) }
+        : { origemPreco: "MANUAL" as const }),
       ...(l.precoUnitario > 0 && l.custoUnitario > 0
         ? { margemPct: Math.round(((l.precoUnitario - l.custoUnitario) / l.precoUnitario) * 1000) / 10 }
         : {}),

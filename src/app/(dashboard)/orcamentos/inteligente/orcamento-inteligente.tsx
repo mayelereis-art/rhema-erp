@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { gerarOrcamentoInteligente } from "@/lib/orcamento-inteligente-gerar";
+import { pesquisarPrecoMercado, type ResultadoPesquisa } from "@/lib/pesquisa-preco";
+import { formatarDataHora } from "@/lib/datas";
 import { deleteObject, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase-client";
 import { comprimirImagem } from "@/lib/imagem-cliente";
@@ -14,7 +16,16 @@ import type { Cliente, TipoServico } from "@/lib/firestore-schema";
 import { calcularOrcamento, precoVendaSugerido, type RegrasPrecificacao } from "@/lib/motor-custos";
 
 /** Componente da análise + custo interno e preço de venda (usados quando não é item do catálogo). */
-export type Linha = ComponenteIA & { custoUnitario: number; precoUnitario: number; precoManual: boolean };
+export type Linha = ComponenteIA & {
+  custoUnitario: number;
+  precoUnitario: number;
+  precoManual: boolean;
+  // De onde veio o custo: digitado ou pesquisa de mercado (com fonte e data).
+  origemCusto?: "MANUAL" | "PESQUISA_MERCADO";
+  fonteUrl?: string;
+  dataPesquisa?: string;
+  pesquisa?: ResultadoPesquisa;
+};
 const SEM_PRECO = { custoUnitario: 0, precoUnitario: 0, precoManual: false };
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -184,6 +195,9 @@ export function OrcamentoInteligente({
           custoUnitario: c.produtoId ? 0 : c.custoUnitario,
           precoUnitario: c.produtoId ? 0 : c.precoUnitario,
           precoManual: c.precoManual,
+          origemCusto: c.produtoId ? undefined : c.origemCusto,
+          fonteUrl: c.produtoId ? undefined : c.fonteUrl,
+          dataPesquisa: c.produtoId ? undefined : c.dataPesquisa,
           confianca: c.confianca,
           confiancaPct: c.confiancaPct,
           daIA: c.observacao !== OBS_MANUAL,
@@ -455,6 +469,20 @@ function ResultadoIA({
         })
     );
   }
+  const [pesquisando, setPesquisando] = useState<number | null>(null);
+  async function pesquisar(i: number) {
+    const c = componentes[i];
+    setPesquisando(i);
+    try {
+      const pesquisa = await pesquisarPrecoMercado({ descricao: c.descricao, tipo: c.tipo, quantidade: c.quantidade });
+      atualizar(i, { pesquisa });
+    } catch {
+      atualizar(i, { pesquisa: { ok: false, mensagem: "Não foi possível obter preço de mercado." } });
+    } finally {
+      setPesquisando(null);
+    }
+  }
+
   function remover(i: number) {
     setComponentes((prev) => prev && prev.filter((_, j) => j !== i));
   }
@@ -510,7 +538,8 @@ function ResultadoIA({
             const st = ROTULO_STATUS[status[i]];
             const livreItem = c.produtoId ? livre?.[c.produtoId] : undefined;
             return (
-              <tr key={i} style={{ borderTop: "1px solid var(--line)", verticalAlign: "top" }}>
+              <Fragment key={i}>
+              <tr style={{ borderTop: "1px solid var(--line)", verticalAlign: "top" }}>
                 <td style={td}>
                   <input
                     value={c.descricao}
@@ -598,9 +627,21 @@ function ResultadoIA({
                         step="0.01"
                         value={c.custoUnitario || ""}
                         placeholder="0,00"
-                        onChange={(e) => atualizar(i, { custoUnitario: Math.max(0, Number(e.target.value)) })}
+                        onChange={(e) => atualizar(i, { custoUnitario: Math.max(0, Number(e.target.value)), origemCusto: "MANUAL", fonteUrl: undefined, dataPesquisa: undefined })}
                         style={{ ...campoStyle, padding: "5px 7px", minWidth: 84 }}
                       />
+                      {c.origemCusto === "PESQUISA_MERCADO" && (
+                        <div style={{ fontSize: 11, color: "var(--sage)" }}>pesquisa de mercado</div>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-g btn-sm"
+                        disabled={pesquisando !== null || c.descricao.trim().length < 3}
+                        onClick={() => pesquisar(i)}
+                        style={{ marginTop: 4, padding: "4px 8px", fontSize: 11.5 }}
+                      >
+                        {pesquisando === i ? "Pesquisando..." : "🔎 Pesquisar preço"}
+                      </button>
                     </td>
                     <td style={td}>
                       <input
@@ -639,6 +680,20 @@ function ResultadoIA({
                   </button>
                 </td>
               </tr>
+              {!c.produtoId && c.pesquisa && (
+                <tr>
+                  <td colSpan={9} style={{ padding: "0 6px 10px" }}>
+                    <PainelPesquisa
+                      pesquisa={c.pesquisa}
+                      onUsar={(valor, fonteUrl, dataPesquisa) =>
+                        atualizar(i, { custoUnitario: valor, origemCusto: "PESQUISA_MERCADO", fonteUrl, dataPesquisa })
+                      }
+                      onFechar={() => atualizar(i, { pesquisa: undefined })}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
           {componentes.length === 0 && (
@@ -669,6 +724,85 @@ function ResultadoIA({
         Próximas etapas: preços, custos e revisão final antes de gerar o orçamento. Nada é reservado nesta tela.
       </div>
     </Secao>
+  );
+}
+
+function PainelPesquisa({
+  pesquisa,
+  onUsar,
+  onFechar,
+}: {
+  pesquisa: ResultadoPesquisa;
+  onUsar: (valor: number, fonteUrl: string, dataPesquisa: string) => void;
+  onFechar: () => void;
+}) {
+  const [adotado, setAdotado] = useState(pesquisa.ok ? pesquisa.medio : 0);
+  const caixa: React.CSSProperties = { background: "var(--cream)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, fontSize: 12.5 };
+  const fechar = (
+    <button type="button" onClick={onFechar} style={{ float: "right", fontSize: 12, color: "var(--ink-soft)" }} aria-label="Fechar pesquisa">
+      ×
+    </button>
+  );
+
+  if (!pesquisa.ok) {
+    return (
+      <div style={caixa}>
+        {fechar}
+        <span style={{ color: "var(--rose-deep)", fontWeight: 600 }}>{pesquisa.mensagem}</span>
+        <div style={{ color: "var(--ink-soft)", marginTop: 4 }}>Informe o custo manualmente, se souber.</div>
+      </div>
+    );
+  }
+
+  // A fonte registrada é a oferta de preço mais próximo do valor adotado.
+  const fonte = pesquisa.ofertas.reduce((a, b) => (Math.abs(b.preco - adotado) < Math.abs(a.preco - adotado) ? b : a));
+  return (
+    <div style={caixa}>
+      {fechar}
+      <div style={{ fontWeight: 700, marginBottom: 6 }}>
+        Preços encontrados ({pesquisa.unidade}) · pesquisa de {formatarDataHora(pesquisa.dataPesquisa)}
+      </div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 8 }}>
+        <span>Menor: <strong>{brl(pesquisa.menor)}</strong></span>
+        <span>Médio: <strong>{brl(pesquisa.medio)}</strong></span>
+        <span>Maior: <strong>{brl(pesquisa.maior)}</strong></span>
+      </div>
+      <ul style={{ margin: "0 0 8px", paddingLeft: 18 }}>
+        {pesquisa.ofertas.map((o) => (
+          <li key={o.url}>
+            {brl(o.preco)} — {o.loja}:{" "}
+            <a href={o.url} target="_blank" rel="noreferrer noopener" style={{ color: "var(--rose-deep)", textDecoration: "underline" }}>
+              {o.titulo.slice(0, 80)}
+            </a>
+          </li>
+        ))}
+      </ul>
+      {pesquisa.descartadas > 0 && (
+        <div style={{ color: "var(--ink-soft)", marginBottom: 8 }}>
+          {pesquisa.descartadas} resultado(s) descartado(s) por não terem link ou preço comprovado.
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span>Preço adotado (custo):</span>
+        <input
+          type="number"
+          min={0}
+          step="0.01"
+          value={adotado}
+          onChange={(e) => setAdotado(Math.max(0, Number(e.target.value)))}
+          style={{ ...campoStyle, width: 100, padding: "5px 7px" }}
+        />
+        <button type="button" className="btn btn-g btn-sm" onClick={() => setAdotado(pesquisa.menor)}>menor</button>
+        <button type="button" className="btn btn-g btn-sm" onClick={() => setAdotado(pesquisa.medio)}>médio</button>
+        <button type="button" className="btn btn-g btn-sm" onClick={() => setAdotado(pesquisa.maior)}>maior</button>
+        <button type="button" className="btn btn-p btn-sm" disabled={adotado <= 0} onClick={() => onUsar(adotado, fonte.url, pesquisa.dataPesquisa)}>
+          Usar como custo
+        </button>
+      </div>
+      <div style={{ color: "var(--ink-soft)", marginTop: 6 }}>
+        Preços de anúncios podem mudar. Confira o link antes de fechar com o cliente.
+      </div>
+    </div>
   );
 }
 

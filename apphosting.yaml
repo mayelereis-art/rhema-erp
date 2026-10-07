@@ -4,6 +4,9 @@
 runConfig:
   minInstances: 0
   maxInstances: 2
+  # Análise de fotos e pesquisa de preço na web (Orçamento Inteligente) podem
+  # passar de 1 minuto.
+  timeoutSeconds: 300
 
 # Variáveis públicas (NEXT_PUBLIC_*) do projeto rhema-erp. Em produção, o Admin
 # SDK (src/lib/firebase-admin.ts) usa as credenciais padrão do ambiente do App
