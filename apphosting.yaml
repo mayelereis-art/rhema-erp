@@ -23,3 +23,9 @@ env:
     value: "1:752737904072:web:bbea4548c83272c6250cfd"
   - variable: NEXT_PUBLIC_WHATSAPP_NUMERO
     value: "5511998123344"
+  # Chave da IA (Orçamento Inteligente): segredo do Cloud Secret Manager, nunca
+  # o valor. Só no servidor em execução — o build não precisa dela.
+  - variable: ANTHROPIC_API_KEY
+    secret: ANTHROPIC_API_KEY
+    availability:
+      - RUNTIME
